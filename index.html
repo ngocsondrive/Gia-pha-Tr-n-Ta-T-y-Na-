@@ -34,7 +34,6 @@ img {
 let scale = 1;
 const img = document.getElementById("img");
 
-// zoom
 window.addEventListener("wheel", function(e) {
     if (e.ctrlKey) {
         e.preventDefault();
@@ -45,8 +44,7 @@ window.addEventListener("wheel", function(e) {
             scale -= 0.1; // zoom out
         }
 
-        // 🔥 giới hạn: không nhỏ hơn 1 (kích thước ban đầu)
-        scale = Math.max(1, Math.min(scale, 5));
+        scale = Math.max(0.5, Math.min(scale, 5)); // giới hạn zoom
 
         img.style.transform = "scale(" + scale + ")";
     }
