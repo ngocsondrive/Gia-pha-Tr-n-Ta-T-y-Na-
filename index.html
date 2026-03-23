@@ -1,83 +1,18 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trang Web Nền Di Sản Trần Gia</title>
-    <style>
-        /* CSS CHO HÌNH NỀN */
-        body {
-            /* 1. Thiết lập hình nền */
-            background-image: url('image_32.png'); /* Đảm bảo tên file chính xác và nằm cùng thư mục */
-            
-            /* 2. Làm cho hình nền bao phủ toàn bộ trang */
-            background-size: cover;
-            
-            /* 3. Cố định hình nền khi cuộn */
-            background-attachment: fixed;
-            
-            /* 4. Căn giữa hình nền */
-            background-position: center;
-            
-            /* 5. Không lặp lại hình ảnh */
-            background-repeat: no-repeat;
-            
-            /* Các thiết lập CSS khác cho body */
-            margin: 0;
-            font-family: Arial, sans-serif;
-            color: #333;
-        }
-
-        /* THIẾT KẾ CHO PHẦN NỘI DUNG */
-        .content-overlay {
-            /* 1. Lớp nền mờ để chữ rõ ràng hơn */
-            background-color: rgba(255, 255, 255, 0.85); /* Nền trắng mờ (rgba với alpha 0.85) */
-            
-            /* 2. Căn giữa và giới hạn chiều rộng */
-            max-width: 900px;
-            margin: 50px auto; /* Căn giữa ngang, cách trên 50px */
-            
-            /* 3. Padding và các chi tiết thẩm mỹ khác */
-            padding: 40px;
-            border-radius: 15px; /* Bo góc */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Đổ bóng */
-            
-            /* 4. Giữ cho nội dung không 'chạm' vào nền */
-            position: relative;
-            z-index: 1; /* Đảm bảo nội dung nằm trên lớp nền mờ */
-        }
-
-        h1, h2 {
-            text-align: center;
-            color: #8b6d2e; /* Màu nâu vàng phù hợp với tông nền */
-        }
-
-        p {
-            line-height: 1.8;
-            margin-bottom: 20px;
-        }
-
-        /* Hiệu ứng mờ cho văn bản nếu muốn tập trung vào nền */
-        /* .content-overlay > * { filter: blur(2px); transition: filter 0.3s; } */
-        /* .content-overlay:hover > * { filter: blur(0); } */
-    </style>
+<style>
+body {
+  background-image: url("Background.jpg"); /* hoặc .jpg */
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+</style>
 </head>
 <body>
 
-    <div class="content-overlay">
-        <h1>Chào Mừng Đến Với Gia Phả Trần Gia</h1>
-        <h2>Di Sản & Truyền Thống</h2>
-        <p>Đây là phần nội dung của trang web. Hình ảnh nền bạn đã chọn là một bức thư pháp cổ kính với hai câu đối ý nghĩa: "Con cháu thảo hiền vạn kiếp vinh" và "Tổ tiên tích đức muôn đời thịnh", cùng với gia hiệu "TRẦN TẢ TÂY NA". Bức ảnh rất chi tiết và trang trọng.</p>
-        <p>Trong đoạn CSS, chúng tôi đã sử dụng các thuộc tính chính:</p>
-        <ul>
-            <li><code>background-image: url('image_32.png');</code> - Sử dụng hình ảnh làm nền.</li>
-            <li><code>background-size: cover;</code> - Đảm bảo hình nền bao phủ toàn bộ màn hình, không bị méo.</li>
-            <li><code>background-attachment: fixed;</code> - Cố định hình nền, tạo hiệu ứng chiều sâu.</li>
-            <li><code>background-position: center;</code> - Căn giữa hình nền.</li>
-        </ul>
-        <p>Nội dung này được đặt trong một lớp phủ mờ (<code>.content-overlay</code>) để văn bản luôn rõ ràng và dễ đọc, đồng thời vẫn cho phép hình ảnh nền tuyệt đẹp hiện ra. Bạn có thể tùy chỉnh lớp mờ này (rgba và border-radius) trong phần CSS.</p>
-        <p>Tiếp tục thêm nội dung của bạn vào đây... Một gia đình lớn, một dòng họ mạnh mẽ!</p>
-    </div>
+<h1>Web của tao 😎</h1>
 
 </body>
 </html>
