@@ -1,20 +1,157 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Gia Phả Trần Tả Tây Nạ</title>
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
+<title>Gia Phả Trần Tả Tây Nạ</title>
+
+<style>
+body {
+    margin:0;
+    font-family: "Times New Roman", serif;
+    background: linear-gradient(#f6e7c9, #f2d9a6);
+}
+
+/* KHUNG NGOÀI */
+.container {
+    border: 15px solid #a80000;
+    margin: 20px;
+    padding: 20px;
+    background: #fff6dc;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+
+/* CUỐN THƯ */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.scroll {
+    display: inline-block;
+    padding: 20px 50px;
+    background: linear-gradient(#ffe8a3, #ffd36b);
+    border: 6px solid gold;
+    border-radius: 40px;
+    font-size: 36px;
+    font-weight: bold;
+    color: #8b0000;
+    box-shadow: 0 0 15px gold;
+}
+
+/* RỒNG */
+.dragons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.dragon {
+    font-size: 60px;
+}
+
+/* SƠ ĐỒ */
+.tree {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* MỖI ĐỜI */
+.level {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+/* Ô NGƯỜI */
+.person {
+    border: 2px solid #a80000;
+    padding: 10px;
+    margin: 8px;
+    width: 130px;
+    background: white;
+    text-align: center;
+    font-size: 13px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+}
+
+/* ĐƯỜNG NỐI */
+.line {
+    width: 2px;
+    height: 20px;
+    background: #a80000;
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+    .person { width: 90px; font-size: 11px; }
+    .scroll { font-size: 24px; }
+}
+</style>
 </head>
-<body style="font-family: Arial; text-align: center;">
-    <h1>GIA PHẢ TRẦN TẢ TÂY NẠ</h1>
-    <p>Chào mừng đến với trang gia phả dòng họ Trần</p>
 
-    <h2>Đời 1</h2>
-    <p>...</p>
+<body>
 
-    <h2>Đời 2</h2>
-    <p>...</p>
+<div class="container">
 
-    <h2>Đời 3</h2>
-    <p>...</p>
+    <!-- RỒNG + CUỐN THƯ -->
+    <div class="dragons">
+        <div class="dragon">🐉</div>
+
+        <div class="header">
+            <div class="scroll">
+                TRẦN TẢ TÂY NẠ
+            </div>
+        </div>
+
+        <div class="dragon">🐉</div>
+    </div>
+
+    <!-- SƠ ĐỒ GIA PHẢ -->
+    <div class="tree">
+
+        <!-- ĐỜI 1 -->
+        <div class="level">
+            <div class="person">
+                CỤ TỔ<br>
+                Trần Văn A
+            </div>
+        </div>
+
+        <div class="line"></div>
+
+        <!-- ĐỜI 2 -->
+        <div class="level">
+            <div class="person">Trần Văn B</div>
+            <div class="person">Trần Văn C</div>
+        </div>
+
+        <div class="line"></div>
+
+        <!-- ĐỜI 3 -->
+        <div class="level">
+            <div class="person">Trần D1</div>
+            <div class="person">Trần D2</div>
+            <div class="person">Trần D3</div>
+            <div class="person">Trần D4</div>
+        </div>
+
+        <div class="line"></div>
+
+        <!-- ĐỜI 4 -->
+        <div class="level">
+            <div class="person">Trần E1</div>
+            <div class="person">Trần E2</div>
+            <div class="person">Trần E3</div>
+            <div class="person">Trần E4</div>
+            <div class="person">Trần E5</div>
+        </div>
+
+    </div>
+
+</div>
+
 </body>
 </html>
