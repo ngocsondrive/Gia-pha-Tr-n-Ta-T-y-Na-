@@ -1,28 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Gia phả</title>
+<meta charset="UTF-8">
+<title>Gia phả</title>
 
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
+<style>
+body {
+    margin: 0;
+    overflow: auto;
+    background-color: #000;
+}
 
-        body {
-            background-color: #000;
-        }
+#container {
+    text-align: center;
+}
 
-        img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-    </style>
+img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transform-origin: center center;
+}
+</style>
 </head>
 
 <body>
-    <img src="Background.jpg">
+
+<div id="container">
+    <img id="img" src="Background.jpg">
+</div>
+
+<script>
+let scale = 1;
+const img = document.getElementById("img");
+
+window.addEventListener("wheel", function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+
+        if (e.deltaY < 0) {
+            scale += 0.1; // zoom in
+        } else {
+            scale -= 0.1; // zoom out
+        }
+
+        scale = Math.max(0.5, Math.min(scale, 5)); // giới hạn zoom
+
+        img.style.transform = "scale(" + scale + ")";
+    }
+}, { passive: false });
+</script>
+
 </body>
 </html>
