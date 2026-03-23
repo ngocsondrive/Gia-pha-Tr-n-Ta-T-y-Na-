@@ -1,157 +1,83 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>Gia Phả Trần Tả Tây Nạ</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Web Nền Di Sản Trần Gia</title>
+    <style>
+        /* CSS CHO HÌNH NỀN */
+        body {
+            /* 1. Thiết lập hình nền */
+            background-image: url('image_32.png'); /* Đảm bảo tên file chính xác và nằm cùng thư mục */
+            
+            /* 2. Làm cho hình nền bao phủ toàn bộ trang */
+            background-size: cover;
+            
+            /* 3. Cố định hình nền khi cuộn */
+            background-attachment: fixed;
+            
+            /* 4. Căn giữa hình nền */
+            background-position: center;
+            
+            /* 5. Không lặp lại hình ảnh */
+            background-repeat: no-repeat;
+            
+            /* Các thiết lập CSS khác cho body */
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
 
-<style>
-body {
-    margin:0;
-    font-family: "Times New Roman", serif;
-    background: linear-gradient(#f6e7c9, #f2d9a6);
-}
+        /* THIẾT KẾ CHO PHẦN NỘI DUNG */
+        .content-overlay {
+            /* 1. Lớp nền mờ để chữ rõ ràng hơn */
+            background-color: rgba(255, 255, 255, 0.85); /* Nền trắng mờ (rgba với alpha 0.85) */
+            
+            /* 2. Căn giữa và giới hạn chiều rộng */
+            max-width: 900px;
+            margin: 50px auto; /* Căn giữa ngang, cách trên 50px */
+            
+            /* 3. Padding và các chi tiết thẩm mỹ khác */
+            padding: 40px;
+            border-radius: 15px; /* Bo góc */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Đổ bóng */
+            
+            /* 4. Giữ cho nội dung không 'chạm' vào nền */
+            position: relative;
+            z-index: 1; /* Đảm bảo nội dung nằm trên lớp nền mờ */
+        }
 
-/* KHUNG NGOÀI */
-.container {
-    border: 15px solid #a80000;
-    margin: 20px;
-    padding: 20px;
-    background: #fff6dc;
-    box-shadow: 0 0 20px rgba(0,0,0,0.3);
-}
+        h1, h2 {
+            text-align: center;
+            color: #8b6d2e; /* Màu nâu vàng phù hợp với tông nền */
+        }
 
-/* CUỐN THƯ */
-.header {
-    text-align: center;
-    margin-bottom: 40px;
-}
+        p {
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
 
-.scroll {
-    display: inline-block;
-    padding: 20px 50px;
-    background: linear-gradient(#ffe8a3, #ffd36b);
-    border: 6px solid gold;
-    border-radius: 40px;
-    font-size: 36px;
-    font-weight: bold;
-    color: #8b0000;
-    box-shadow: 0 0 15px gold;
-}
-
-/* RỒNG */
-.dragons {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.dragon {
-    font-size: 60px;
-}
-
-/* SƠ ĐỒ */
-.tree {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-/* MỖI ĐỜI */
-.level {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin: 20px 0;
-}
-
-/* Ô NGƯỜI */
-.person {
-    border: 2px solid #a80000;
-    padding: 10px;
-    margin: 8px;
-    width: 130px;
-    background: white;
-    text-align: center;
-    font-size: 13px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-}
-
-/* ĐƯỜNG NỐI */
-.line {
-    width: 2px;
-    height: 20px;
-    background: #a80000;
-}
-
-/* RESPONSIVE */
-@media (max-width: 600px) {
-    .person { width: 90px; font-size: 11px; }
-    .scroll { font-size: 24px; }
-}
-</style>
+        /* Hiệu ứng mờ cho văn bản nếu muốn tập trung vào nền */
+        /* .content-overlay > * { filter: blur(2px); transition: filter 0.3s; } */
+        /* .content-overlay:hover > * { filter: blur(0); } */
+    </style>
 </head>
-
 <body>
 
-<div class="container">
-
-    <!-- RỒNG + CUỐN THƯ -->
-    <div class="dragons">
-        <div class="dragon">🐉</div>
-
-        <div class="header">
-            <div class="scroll">
-                TRẦN TẢ TÂY NẠ
-            </div>
-        </div>
-
-        <div class="dragon">🐉</div>
+    <div class="content-overlay">
+        <h1>Chào Mừng Đến Với Gia Phả Trần Gia</h1>
+        <h2>Di Sản & Truyền Thống</h2>
+        <p>Đây là phần nội dung của trang web. Hình ảnh nền bạn đã chọn là một bức thư pháp cổ kính với hai câu đối ý nghĩa: "Con cháu thảo hiền vạn kiếp vinh" và "Tổ tiên tích đức muôn đời thịnh", cùng với gia hiệu "TRẦN TẢ TÂY NA". Bức ảnh rất chi tiết và trang trọng.</p>
+        <p>Trong đoạn CSS, chúng tôi đã sử dụng các thuộc tính chính:</p>
+        <ul>
+            <li><code>background-image: url('image_32.png');</code> - Sử dụng hình ảnh làm nền.</li>
+            <li><code>background-size: cover;</code> - Đảm bảo hình nền bao phủ toàn bộ màn hình, không bị méo.</li>
+            <li><code>background-attachment: fixed;</code> - Cố định hình nền, tạo hiệu ứng chiều sâu.</li>
+            <li><code>background-position: center;</code> - Căn giữa hình nền.</li>
+        </ul>
+        <p>Nội dung này được đặt trong một lớp phủ mờ (<code>.content-overlay</code>) để văn bản luôn rõ ràng và dễ đọc, đồng thời vẫn cho phép hình ảnh nền tuyệt đẹp hiện ra. Bạn có thể tùy chỉnh lớp mờ này (rgba và border-radius) trong phần CSS.</p>
+        <p>Tiếp tục thêm nội dung của bạn vào đây... Một gia đình lớn, một dòng họ mạnh mẽ!</p>
     </div>
-
-    <!-- SƠ ĐỒ GIA PHẢ -->
-    <div class="tree">
-
-        <!-- ĐỜI 1 -->
-        <div class="level">
-            <div class="person">
-                CỤ TỔ<br>
-                Trần Văn A
-            </div>
-        </div>
-
-        <div class="line"></div>
-
-        <!-- ĐỜI 2 -->
-        <div class="level">
-            <div class="person">Trần Văn B</div>
-            <div class="person">Trần Văn C</div>
-        </div>
-
-        <div class="line"></div>
-
-        <!-- ĐỜI 3 -->
-        <div class="level">
-            <div class="person">Trần D1</div>
-            <div class="person">Trần D2</div>
-            <div class="person">Trần D3</div>
-            <div class="person">Trần D4</div>
-        </div>
-
-        <div class="line"></div>
-
-        <!-- ĐỜI 4 -->
-        <div class="level">
-            <div class="person">Trần E1</div>
-            <div class="person">Trần E2</div>
-            <div class="person">Trần E3</div>
-            <div class="person">Trần E4</div>
-            <div class="person">Trần E5</div>
-        </div>
-
-    </div>
-
-</div>
 
 </body>
 </html>
