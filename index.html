@@ -1,14 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
 <style>
-html, body {
-  height: 100%;
+body {
   margin: 0;
+  display: flex;
+  justify-content: center;  /* căn ngang */
+  align-items: center;      /* căn dọc */
+  height: 100vh;
+  background-color: #000;   /* nền ngoài (tuỳ chọn) */
 }
 
-body {
-  background-image: url("Background.jpg"); /* hoặc link raw */
-  background-size: cover;        /* phủ full màn hình */
-  background-position: center;   /* căn giữa ảnh */
-  background-repeat: no-repeat;  
-  background-attachment: fixed;  /* không bị trôi */
+img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* giữ nguyên tỷ lệ */
 }
 </style>
+</head>
+<body>
+
+<img src="Background.jpg">
+
+</body>
+</html>
