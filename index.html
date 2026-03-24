@@ -205,7 +205,7 @@ drawLineBtn.onclick=()=>{
     document.body.classList.add("lineCursor");
 };
 
-// Vẽ line mới
+// Vẽ line mới (chỉ ngang hoặc dọc)
 container.addEventListener("mousedown", e=>{
     if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
@@ -239,7 +239,18 @@ container.addEventListener("mousedown", e=>{
     function onMove(e){
         let x2=e.clientX/scale - offsetX/scale;
         let y2=e.clientY/scale - offsetY/scale;
-        line.dataset.x2=x2; line.dataset.y2=y2;
+
+        let dx = Math.abs(x2 - x1);
+        let dy = Math.abs(y2 - y1);
+
+        if(dx > dy){
+            y2 = y1; // ngang
+        } else {
+            x2 = x1; // dọc
+        }
+
+        line.dataset.x2 = x2;
+        line.dataset.y2 = y2;
         updateLine(line);
     }
 
@@ -261,7 +272,6 @@ lineColorInput.oninput = () => {
         selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
     }
 };
-
 lineWidthInput.oninput = () => {
     if (selectedLine) {
         saveHistory();
