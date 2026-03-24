@@ -11,25 +11,6 @@ body {
     font-family: Arial;
 }
 
-/* LOGIN */
-#loginBox {
-    position: fixed;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
-}
-
-#loginBox input {
-    display: block;
-    margin: 10px auto;
-    padding: 5px;
-}
-
-/* MAIN */
 #container {
     position: relative;
     text-align: center;
@@ -53,29 +34,71 @@ img {
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    cursor: grab;
+    cursor: default;
+}
+
+/* LOGIN BUTTON */
+#loginBtn, #logoutBtn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+/* LOGOUT hidden */
+#logoutBtn {
+    display: none;
+}
+
+/* LOGIN POPUP */
+#loginBox {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+}
+
+#loginBox input {
+    display: block;
+    margin: 10px auto;
+    padding: 5px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
+<button id="loginBtn" onclick="showLogin()">Login</button>
+<button id="logoutBtn" onclick="logout()">Logout</button>
+
 <div id="loginBox">
     <h3>Login</h3>
     <input id="user" placeholder="Username">
     <input id="pass" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
+    <button onclick="login()">OK</button>
 </div>
 
-<!-- MAIN -->
-<div id="container" style="display:none;">
+<div id="container">
     <img src="Background.jpg">
     <div class="box" id="box">Tran Van A</div>
 </div>
 
 <script>
 let isLogin = false;
+
+/* SHOW LOGIN */
+function showLogin() {
+    document.getElementById("loginBox").style.display = "block";
+}
 
 /* LOGIN */
 function login() {
@@ -85,10 +108,20 @@ function login() {
     if (u === "a" && p === "1") {
         isLogin = true;
         document.getElementById("loginBox").style.display = "none";
-        document.getElementById("container").style.display = "block";
+        document.getElementById("loginBtn").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "block";
+        document.getElementById("box").style.cursor = "grab";
     } else {
         alert("Wrong account");
     }
+}
+
+/* LOGOUT */
+function logout() {
+    isLogin = false;
+    document.getElementById("loginBtn").style.display = "block";
+    document.getElementById("logoutBtn").style.display = "none";
+    document.getElementById("box").style.cursor = "default";
 }
 
 /* DRAG */
@@ -103,7 +136,6 @@ box.addEventListener("mousedown", function(e) {
     isDragging = true;
     offsetX = e.offsetX;
     offsetY = e.offsetY;
-    box.style.cursor = "grabbing";
 });
 
 document.addEventListener("mousemove", function(e) {
@@ -115,7 +147,6 @@ document.addEventListener("mousemove", function(e) {
 
 document.addEventListener("mouseup", function() {
     isDragging = false;
-    box.style.cursor = "grab";
 });
 </script>
 
