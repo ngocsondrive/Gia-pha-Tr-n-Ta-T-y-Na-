@@ -104,7 +104,7 @@ img { width: 100%; }
     margin-bottom: 5px;
 }
 
-/* LINE TOOL */
+/* LINE TOOL OPTIONS */
 #lineOptions {
     display: none;
     margin-top: 10px;
@@ -150,11 +150,11 @@ img { width: 100%; }
     Text Color:
     <input id="textColor" type="color">
 
-    <!-- LINE TOOL -->
     <label><input type="checkbox" id="lineMode"> Vẽ đường thẳng</label>
     <div id="lineOptions">
         Line Color: <input type="color" id="lineColor" value="#ff0000">
         Line Width: <input type="number" id="lineWidth" value="3">
+        <button id="drawLineBtn">✏️ Vẽ Line</button>
     </div>
 </div>
 
@@ -168,6 +168,7 @@ let scale=1, offsetX=0, offsetY=0;
 let historyStack=[];
 
 let lineMode=false;
+let drawLineMode=false;
 let currentLine=null;
 let startX=0, startY=0;
 
@@ -295,7 +296,7 @@ function enable(box){
 
 function rebind(){
     document.querySelectorAll(".box").forEach(enable);
-    document.querySelectorAll(".line").forEach(enableLine);
+    document.querySelectorAll(".line").forEach(enableLineMoveDelete);
 }
 
 /* DRAG */
@@ -388,14 +389,22 @@ const lineModeCheckbox = document.getElementById("lineMode");
 const lineOptions = document.getElementById("lineOptions");
 const lineColorInput = document.getElementById("lineColor");
 const lineWidthInput = document.getElementById("lineWidth");
+const drawLineBtn = document.getElementById("drawLineBtn");
 
 lineModeCheckbox.onchange=()=>{
     lineMode=lineModeCheckbox.checked;
     lineOptions.style.display=lineMode ? "block" : "none";
 };
 
+drawLineBtn.onclick=()=>{
+    drawLineMode=!drawLineMode;
+    drawLineBtn.style.backgroundColor=drawLineMode ? "#ddd" : "";
+};
+
+/* Vẽ line một lần */
 container.addEventListener("mousedown", e=>{
-    if(!isLogin || !lineMode) return;
+    if(!isLogin) return;
+    if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
 
     saveHistory();
@@ -412,34 +421,63 @@ container.addEventListener("mousedown", e=>{
     line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
     container.appendChild(line);
     currentLine=line;
+
+    function onMouseMove(e){
+        const x2=e.clientX/scale - offsetX/scale;
+        const y2=e.clientY/scale - offsetY/scale;
+        const dx=x2-startX;
+        const dy=y2-startY;
+        const length=Math.sqrt(dx*dx + dy*dy);
+        const angle=Math.atan2(dy, dx) * 180/Math.PI;
+        currentLine.style.width=length+"px";
+        currentLine.style.transform=`rotate(${angle}deg)`;
+        currentLine.style.transformOrigin="0 0";
+    }
+
+    function onMouseUp(e){
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        enableLineMoveDelete(currentLine);
+        currentLine=null;
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
 });
 
-container.addEventListener("mousemove", e=>{
-    if(!currentLine) return;
-    const x2=e.clientX/scale - offsetX/scale;
-    const y2=e.clientY/scale - offsetY/scale;
-
-    const dx=x2-startX;
-    const dy=y2-startY;
-    const length=Math.sqrt(dx*dx + dy*dy);
-    const angle=Math.atan2(dy, dx) * 180/Math.PI;
-
-    currentLine.style.width=length+"px";
-    currentLine.style.transform=`rotate(${angle}deg)`;
-    currentLine.style.transformOrigin="0 0";
-});
-
-container.addEventListener("mouseup", e=>{
-    currentLine=null;
-});
-
-function enableLine(line){
+/* Di chuyển và xóa line */
+function enableLineMoveDelete(line){
     line.onclick=e=>{
         e.stopPropagation();
         document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
         line.classList.add("active");
         currentLine=line;
     };
+
+    let draggingLine=false, dxLine, dyLine;
+
+    line.addEventListener("mousedown", e=>{
+        if(!isLogin) return;
+        e.stopPropagation();
+        draggingLine=true;
+        dxLine=e.clientX/scale - offsetX/scale - parseFloat(line.style.left);
+        dyLine=e.clientY/scale - offsetY/scale - parseFloat(line.style.top);
+    });
+
+    document.addEventListener("mousemove", e=>{
+        if(!draggingLine) return;
+        line.style.left=(e.clientX/scale - offsetX/scale - dxLine)+"px";
+        line.style.top=(e.clientY/scale - offsetY/scale - dyLine)+"px";
+    });
+
+    document.addEventListener("mouseup", ()=>draggingLine=false);
+
+    document.addEventListener("keydown", e=>{
+        if(e.key==="Delete" && line.classList.contains("active")){
+            saveHistory();
+            line.remove();
+        }
+    });
 }
 </script>
 
