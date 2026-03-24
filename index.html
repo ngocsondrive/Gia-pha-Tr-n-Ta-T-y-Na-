@@ -27,13 +27,6 @@ img { width:100%; }
 /* LINE */
 .line { position:absolute; pointer-events:auto; }
 .line.active { outline:2px dashed yellow; }
-.handle {
-    position:absolute; width:12px; height:12px; background:#fff; border:2px solid #000;
-    border-radius:50%; cursor:pointer; z-index:1000;
-}
-.handle-hover {
-    cursor: ew-resize; /* hiển thị mũi tên kéo dài/thu ngắn */
-}
 
 /* TOOLBOX */
 #tool {
@@ -108,8 +101,6 @@ img { width:100%; }
 
 <script>
 let isLogin=false,currentBox=null,scale=1,offsetX=0,offsetY=0,historyStack=[];
-let drawLineMode=false;
-
 const container=document.getElementById("container");
 
 /* AUTO LOAD */
@@ -198,11 +189,10 @@ document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault()
 /* SAVE */
 saveBtn.onclick=()=>{ localStorage.setItem("familyTree",container.innerHTML); alert("Đã lưu!"); };
 
-/* LINE THÔNG MINH BẤT KỲ GÓC */
+/* LINE THÔNG MINH */
 const drawLineBtn=document.getElementById("drawLineBtn");
 const lineColorInput=document.getElementById("lineColor");
 const lineWidthInput=document.getElementById("lineWidth");
-
 let activeLine=null, draggingLine=null, dragEnd=null;
 
 drawLineBtn.onclick=()=>{ if(!isLogin) return; drawLineMode=true; document.body.classList.add("lineCursor"); };
@@ -212,7 +202,6 @@ container.addEventListener("mousedown", e=>{
     if(e.target.closest(".box")) return;
 
     saveHistory();
-
     let x1=e.clientX/scale - offsetX/scale;
     let y1=e.clientY/scale - offsetY/scale;
 
@@ -255,45 +244,52 @@ container.addEventListener("mousedown", e=>{
 });
 
 function enableLine(line){
-    line.onclick=e=>{
-        e.stopPropagation();
-        document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
-        line.classList.add("active");
-        activeLine=line;
-    };
-
-    line.addEventListener("mousemove",e=>{
-        let x=parseFloat(line.dataset.x1), y=parseFloat(line.dataset.y1);
+    line.addEventListener("mousemove", e=>{
+        let x1=parseFloat(line.dataset.x1), y1=parseFloat(line.dataset.y1);
         let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
-        let threshold=10/scale;
+        let threshold=20/scale;
+        let mx=e.clientX/scale - offsetX/scale;
+        let my=e.clientY/scale - offsetY/scale;
 
-        if(Math.hypot(e.offsetX-(x2-x),e.offsetY-(y2-y))<threshold){
-            line.style.cursor="ew-resize"; dragEnd="end";
-        } else if(Math.hypot(e.offsetX,e.offsetY)<threshold){
+        if(Math.hypot(mx-x1,my-y1)<threshold){
             line.style.cursor="ew-resize"; dragEnd="start";
+        } else if(Math.hypot(mx-x2,my-y2)<threshold){
+            line.style.cursor="ew-resize"; dragEnd="end";
         } else{
-            line.style.cursor="pointer"; dragEnd=null;
+            let dx=x2-x1, dy=y2-y1;
+            let len=Math.sqrt(dx*dx+dy*dy);
+            let distance=Math.abs(dy*mx - dx*my + x2*y1 - y2*x1)/len;
+            if(distance<threshold){
+                line.style.cursor="move"; dragEnd="middle"; 
+            } else{
+                line.style.cursor="default"; dragEnd=null;
+            }
         }
     });
 
-    line.addEventListener("mousedown",e=>{
+    line.addEventListener("mousedown", e=>{
         if(!dragEnd) return;
         e.stopPropagation();
         draggingLine=line;
-        document.addEventListener("mousemove",resizeLine);
-        document.addEventListener("mouseup",stopResizeLine);
+        document.addEventListener("mousemove", resizeLine);
+        document.addEventListener("mouseup", stopResizeLine);
     });
 }
 
 function resizeLine(e){
     if(!draggingLine || !dragEnd) return;
-    let x=parseFloat(draggingLine.dataset.x1), y=parseFloat(draggingLine.dataset.y1);
+    let x1=parseFloat(draggingLine.dataset.x1), y1=parseFloat(draggingLine.dataset.y1);
     let x2=parseFloat(draggingLine.dataset.x2), y2=parseFloat(draggingLine.dataset.y2);
     let mx=e.clientX/scale - offsetX/scale;
     let my=e.clientY/scale - offsetY/scale;
 
     if(dragEnd==="start"){ draggingLine.dataset.x1=mx; draggingLine.dataset.y1=my; }
-    else draggingLine.dataset.x2=mx; draggingLine.dataset.y2=my;
+    else if(dragEnd==="end"){ draggingLine.dataset.x2=mx; draggingLine.dataset.y2=my; }
+    else if(dragEnd==="middle"){
+        let dx=mx-(x1+(x2-x1)/2), dy=my-(y1+(y2-y1)/2);
+        draggingLine.dataset.x1=x1+dx; draggingLine.dataset.y1=y1+dy;
+        draggingLine.dataset.x2=x2+dx; draggingLine.dataset.y2=y2+dy;
+    }
 
     let dx=draggingLine.dataset.x2-draggingLine.dataset.x1;
     let dy=draggingLine.dataset.y2-draggingLine.dataset.y1;
@@ -304,8 +300,11 @@ function resizeLine(e){
     draggingLine.style.transformOrigin="0 0";
 }
 
-function stopResizeLine(){ document.removeEventListener("mousemove",resizeLine); document.removeEventListener("mouseup",stopResizeLine); draggingLine=null; dragEnd=null; }
-
+function stopResizeLine(){
+    document.removeEventListener("mousemove", resizeLine);
+    document.removeEventListener("mouseup", stopResizeLine);
+    draggingLine=null; dragEnd=null;
+}
 </script>
 </body>
 </html>
