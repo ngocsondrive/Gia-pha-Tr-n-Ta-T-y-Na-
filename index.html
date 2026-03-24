@@ -42,7 +42,7 @@ img {
     overflow: visible;
 }
 
-/* ✅ SỬA HANDLE */
+/* HANDLE (ẩn → hover mới hiện) */
 .resize-handle {
     position: absolute;
     right: -8px;
@@ -51,6 +51,12 @@ img {
     height: 18px;
     cursor: nwse-resize;
     background: none;
+    opacity: 0;
+    transition: 0.2s;
+}
+
+.box:hover .resize-handle {
+    opacity: 1;
 }
 
 .resize-handle::before {
@@ -155,7 +161,11 @@ img {
 <script>
 let isLogin = false;
 let currentBox = null;
+
 let scale = 1;
+const MIN_SCALE = 1;
+const MAX_SCALE = 3;
+
 let offsetX = 0;
 let offsetY = 0;
 
@@ -260,7 +270,7 @@ function enableResize(box, handle){
     document.addEventListener("mouseup", ()=> resizing = false);
 }
 
-/* ✅ AUTO CENTER */
+/* AUTO CENTER */
 function updateTransform(){
     const img = container.querySelector("img");
 
@@ -270,11 +280,13 @@ function updateTransform(){
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
 
-    if (w < screenW) offsetX = (screenW - w) / 2;
-    if (h < screenH) offsetY = (screenH - h) / 2;
+    if (scale === MIN_SCALE) {
+        offsetX = (screenW - w) / 2;
+        offsetY = (screenH - h) / 2;
+    }
 
     container.style.transform =
-        "translate(" + offsetX + "px," + offsetY + "px) scale(" + scale + ")";
+        `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
 /* ZOOM */
@@ -285,13 +297,13 @@ window.addEventListener("wheel", (e)=>{
         if(e.deltaY < 0) scale += 0.1;
         else scale -= 0.1;
 
-        scale = Math.max(0.3, Math.min(scale, 3));
+        scale = Math.max(MIN_SCALE, Math.min(scale, MAX_SCALE));
 
         updateTransform();
     }
 }, { passive:false });
 
-/* ✅ PAN CHUỘT TRÁI */
+/* PAN */
 let panning = false, startX, startY;
 
 document.addEventListener("mousedown", (e)=>{
@@ -299,15 +311,18 @@ document.addEventListener("mousedown", (e)=>{
     if(e.target.closest(".box")) return;
 
     panning = true;
-    startX = e.clientX - offsetX;
-    startY = e.clientY - offsetY;
+    startX = e.clientX;
+    startY = e.clientY;
 });
 
 document.addEventListener("mousemove", (e)=>{
     if(!panning) return;
 
-    offsetX = e.clientX - startX;
-    offsetY = e.clientY - startY;
+    offsetX += (e.clientX - startX);
+    offsetY += (e.clientY - startY);
+
+    startX = e.clientX;
+    startY = e.clientY;
 
     updateTransform();
 });
