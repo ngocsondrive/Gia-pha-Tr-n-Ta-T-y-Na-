@@ -7,10 +7,29 @@
 <style>
 body {
     margin: 0;
-    overflow: auto;
-    background-color: #000;
+    background: #000;
+    font-family: Arial;
 }
 
+/* LOGIN */
+#loginBox {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+#loginBox input {
+    display: block;
+    margin: 10px auto;
+    padding: 5px;
+}
+
+/* MAIN */
 #container {
     position: relative;
     text-align: center;
@@ -18,16 +37,14 @@ body {
 
 img {
     width: 100%;
-    height: auto;
     display: block;
-    transform-origin: center center;
 }
 
-/* TEXT BOX */
-#box {
+/* BOX */
+.box {
     position: absolute;
-    top: 300px;
-    left: 700px;
+    top: 200px;
+    left: 300px;
     width: 120px;
     height: 60px;
     background: white;
@@ -36,36 +53,70 @@ img {
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    cursor: grab;
 }
 </style>
 </head>
 
 <body>
 
-<div id="container">
-    <img id="image" src="Background.jpg">
-    <div id="box">Tran Van A</div>
+<!-- LOGIN -->
+<div id="loginBox">
+    <h3>Login</h3>
+    <input id="user" placeholder="Username">
+    <input id="pass" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+</div>
+
+<!-- MAIN -->
+<div id="container" style="display:none;">
+    <img src="Background.jpg">
+    <div class="box" id="box">Tran Van A</div>
 </div>
 
 <script>
-let scale = 1;
-const container = document.getElementById("container");
+let isLogin = false;
 
-window.addEventListener("wheel", function(e) {
-    if (e.ctrlKey) {
-        e.preventDefault();
+/* LOGIN */
+function login() {
+    const u = document.getElementById("user").value;
+    const p = document.getElementById("pass").value;
 
-        if (e.deltaY < 0) {
-            scale += 0.1;
-        } else {
-            scale -= 0.1;
-        }
-
-        scale = Math.max(0.5, Math.min(scale, 5));
-
-        container.style.transform = "scale(" + scale + ")";
+    if (u === "a" && p === "1") {
+        isLogin = true;
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("container").style.display = "block";
+    } else {
+        alert("Wrong account");
     }
-}, { passive: false });
+}
+
+/* DRAG */
+const box = document.getElementById("box");
+
+let isDragging = false;
+let offsetX, offsetY;
+
+box.addEventListener("mousedown", function(e) {
+    if (!isLogin) return;
+
+    isDragging = true;
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+    box.style.cursor = "grabbing";
+});
+
+document.addEventListener("mousemove", function(e) {
+    if (!isDragging) return;
+
+    box.style.left = (e.pageX - offsetX) + "px";
+    box.style.top = (e.pageY - offsetY) + "px";
+});
+
+document.addEventListener("mouseup", function() {
+    isDragging = false;
+    box.style.cursor = "grab";
+});
 </script>
 
 </body>
