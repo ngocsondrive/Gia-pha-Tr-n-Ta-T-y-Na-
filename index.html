@@ -357,8 +357,10 @@ function updateTransform(){
         `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
-/* ===== ZOOM CHUẨN (KHÔNG NHỎ HƠN 1 + THEO CHUỘT) ===== */
+/* ===== ZOOM CHỈ KHI CTRL + WHEEL ===== */
 document.addEventListener("wheel", (e)=>{
+    if(!e.ctrlKey) return; // không giữ CTRL thì scroll bình thường
+
     e.preventDefault();
 
     const zoomSpeed = 0.1;
@@ -375,6 +377,7 @@ document.addEventListener("wheel", (e)=>{
         newScale -= zoomSpeed;
     }
 
+    // không nhỏ hơn kích thước gốc
     if(newScale < 1) newScale = 1;
 
     offsetX -= (mouseX / scale) * (newScale - scale);
@@ -384,6 +387,7 @@ document.addEventListener("wheel", (e)=>{
 
     updateTransform();
 }, { passive: false });
+
 </script>
 
 </body>
