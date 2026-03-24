@@ -33,7 +33,7 @@ img {
     justify-content: center;
     user-select: none;
     cursor: move;
-    resize: both;         /* 🔥 cho phép kéo giãn */
+    resize: both;
     overflow: hidden;
 }
 
@@ -109,19 +109,16 @@ img {
     <input id="size" type="number" value="16">
 
     Text Color:
-    <input id="textColor" type="color"><br>
-    <button id="applyText">OK Text</button><br><br>
+    <input id="textColor" type="color">
 
     Background:
-    <input id="bgColor" type="color"><br>
-    <button id="applyBg">OK Background</button><br><br>
+    <input id="bgColor" type="color">
 
     Border Color:
     <input id="borderColor" type="color">
 
     Border Width:
-    <input id="borderWidth" type="number" value="2"><br>
-    <button id="applyBorder">OK Border</button>
+    <input id="borderWidth" type="number" value="2">
 </div>
 
 <div id="container">
@@ -137,7 +134,18 @@ const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const loginBox = document.getElementById("loginBox");
 const tool = document.getElementById("tool");
+const container = document.getElementById("container");
 
+/* INPUT */
+const textInput = document.getElementById("text");
+const fontInput = document.getElementById("font");
+const sizeInput = document.getElementById("size");
+const textColorInput = document.getElementById("textColor");
+const bgInput = document.getElementById("bgColor");
+const borderColorInput = document.getElementById("borderColor");
+const borderWidthInput = document.getElementById("borderWidth");
+
+/* LOGIN */
 loginBtn.onclick = () => loginBox.style.display = "block";
 
 okBtn.onclick = () => {
@@ -171,25 +179,54 @@ addBtn.onclick = () => {
     box.onclick = () => currentBox = box;
 };
 
-/* APPLY TEXT */
-applyText.onclick = () => {
+/* ===== REALTIME ===== */
+
+/* TEXT */
+textInput.oninput = () => {
     if (!currentBox) return;
-    currentBox.innerText = text.value;
-    currentBox.style.color = textColor.value;
-    currentBox.style.fontSize = size.value + "px";
-    currentBox.style.fontFamily = font.value;
+    currentBox.innerText = textInput.value;
 };
 
-/* APPLY BACKGROUND */
-applyBg.onclick = () => {
+fontInput.oninput = () => {
     if (!currentBox) return;
-    currentBox.style.background = bgColor.value;
+    currentBox.style.fontFamily = fontInput.value;
 };
 
-/* APPLY BORDER */
-applyBorder.onclick = () => {
+sizeInput.oninput = () => {
     if (!currentBox) return;
-    currentBox.style.border = borderWidth.value + "px solid " + borderColor.value;
+    currentBox.style.fontSize = sizeInput.value + "px";
+};
+
+/* COLOR PREVIEW */
+textColorInput.oninput = () => {
+    if (!currentBox) return;
+    currentBox.style.color = textColorInput.value;
+};
+
+bgInput.oninput = () => {
+    if (!currentBox) return;
+    currentBox.style.background = bgInput.value;
+};
+
+borderColorInput.oninput = () => {
+    if (!currentBox) return;
+    currentBox.style.border = borderWidthInput.value + "px solid " + borderColorInput.value;
+};
+
+borderWidthInput.oninput = () => {
+    if (!currentBox) return;
+    currentBox.style.border = borderWidthInput.value + "px solid " + borderColorInput.value;
+};
+
+/* DOUBLE CLICK = CONFIRM (lưu lại) */
+bgInput.ondblclick = () => {
+    if (!currentBox) return;
+    currentBox.dataset.bg = bgInput.value;
+};
+
+borderColorInput.ondblclick = () => {
+    if (!currentBox) return;
+    currentBox.dataset.border = borderColorInput.value;
 };
 
 /* DRAG */
