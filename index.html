@@ -196,16 +196,15 @@ const lineWidthInput=document.getElementById("lineWidth");
 let drawLineMode=false;
 let selectedLine=null;
 let draggingLine=null;
-let dragOffset={x:0,y:0};
 let dragPart=null;
 
+// Vẽ line mới
 drawLineBtn.onclick=()=>{
     if(!isLogin) return;
     drawLineMode=true;
     document.body.classList.add("lineCursor");
 };
 
-// Vẽ line mới
 container.addEventListener("mousedown", e=>{
     if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
@@ -254,41 +253,13 @@ container.addEventListener("mousedown", e=>{
     container.addEventListener("mouseup",onUp);
 });
 
-// Chỉnh màu và độ dày cho line đang chọn
-lineColorInput.oninput = () => {
-    if (selectedLine) {
-        saveHistory();
-        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
-    }
-};
+// Line color/width chỉnh khi chọn
+lineColorInput.oninput = () => { if(selectedLine){ saveHistory(); selectedLine.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`; } };
+lineWidthInput.oninput = () => { if(selectedLine){ saveHistory(); selectedLine.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`; } };
 
-lineWidthInput.oninput = () => {
-    if (selectedLine) {
-        saveHistory();
-        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
-    }
-};
-
-// Line thông minh với snap ngang/dọc
+// Enable line kéo giãn với snap ngang/dọc
 function enableLine(line){
     const threshold=30/scale;
-    line.addEventListener("mousemove", e=>{
-        let x1=parseFloat(line.dataset.x1), y1=parseFloat(line.dataset.y1);
-        let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
-        let mx=e.clientX/scale - offsetX/scale;
-        let my=e.clientY/scale - offsetY/scale;
-
-        let dx=x2-x1, dy=y2-y1;
-        let len=Math.sqrt(dx*dx+dy*dy);
-        let distance=Math.abs(dy*mx - dx*my + x2*y1 - y2*x1)/len;
-
-        if(Math.hypot(mx-x1,my-y1)<threshold || Math.hypot(mx-x2,my-y2)<threshold){
-            line.style.cursor="nwse-resize";
-        } else if(distance<threshold){
-            line.style.cursor="move";
-        } else line.style.cursor="default";
-    });
-
     line.addEventListener("mousedown", e=>{
         e.stopPropagation();
         selectedLine && selectedLine.classList.remove("active");
@@ -308,24 +279,18 @@ function enableLine(line){
         else dragPart="middle";
 
         draggingLine=line;
-        dragOffset.x=mx-(x1+(x2-x1)/2);
-        dragOffset.y=my-(y1+(y2-y1)/2);
-
         document.addEventListener("mousemove", moveLineSnap);
         document.addEventListener("mouseup", stopMoveLineSnap);
     });
 }
 
-// Move line với snap ngang/dọc
+// Kéo giãn line với snap
 function moveLineSnap(e){
     if(!draggingLine) return;
     let mx=e.clientX/scale - offsetX/scale;
     let my=e.clientY/scale - offsetY/scale;
-
-    let x1=parseFloat(draggingLine.dataset.x1);
-    let y1=parseFloat(draggingLine.dataset.y1);
-    let x2=parseFloat(draggingLine.dataset.x2);
-    let y2=parseFloat(draggingLine.dataset.y2);
+    let x1=parseFloat(draggingLine.dataset.x1), y1=parseFloat(draggingLine.dataset.y1);
+    let x2=parseFloat(draggingLine.dataset.x2), y2=parseFloat(draggingLine.dataset.y2);
 
     if(dragPart==="start"){ draggingLine.dataset.x1=mx; draggingLine.dataset.y1=my; }
     else if(dragPart==="end"){ draggingLine.dataset.x2=mx; draggingLine.dataset.y2=my; }
@@ -336,12 +301,12 @@ function moveLineSnap(e){
         draggingLine.dataset.x2=x2+dx; draggingLine.dataset.y2=y2+dy;
     }
 
-    // Snap ngang/dọc
-    let dx = draggingLine.dataset.x2 - draggingLine.dataset.x1;
-    let dy = draggingLine.dataset.y2 - draggingLine.dataset.y1;
-    const snapThreshold = 20; // px
-    if(Math.abs(dy)<snapThreshold) draggingLine.dataset.y2=draggingLine.dataset.y1;
-    else if(Math.abs(dx)<snapThreshold) draggingLine.dataset.x2=draggingLine.dataset.x1;
+    // Snap khi kéo giãn: nếu gần ngang/dọc
+    let dxl = draggingLine.dataset.x2 - draggingLine.dataset.x1;
+    let dyl = draggingLine.dataset.y2 - draggingLine.dataset.y1;
+    const snap=20;
+    if(Math.abs(dyl)<snap) draggingLine.dataset.y2=draggingLine.dataset.y1;
+    else if(Math.abs(dxl)<snap) draggingLine.dataset.x2=draggingLine.dataset.x1;
 
     let len=Math.sqrt((draggingLine.dataset.x2-draggingLine.dataset.x1)**2 + (draggingLine.dataset.y2-draggingLine.dataset.y1)**2);
     let angle=Math.atan2(draggingLine.dataset.y2-draggingLine.dataset.y1, draggingLine.dataset.x2-draggingLine.dataset.x1)*180/Math.PI;
