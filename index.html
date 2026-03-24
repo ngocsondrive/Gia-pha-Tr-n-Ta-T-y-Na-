@@ -21,7 +21,6 @@ body:active { cursor: grabbing; }
 
 img {
     width: 100%;
-    display: block;
 }
 
 /* BOX */
@@ -37,14 +36,13 @@ img {
     justify-content: center;
     user-select: none;
     cursor: move;
-    overflow: visible;
 }
 
 .box.active {
     outline: 3px dashed red;
 }
 
-/* HANDLE */
+/* RESIZE */
 .resize-handle {
     position: absolute;
     right: -8px;
@@ -52,19 +50,6 @@ img {
     width: 18px;
     height: 18px;
     cursor: nwse-resize;
-    opacity: 0;
-}
-.box:hover .resize-handle { opacity: 1; }
-
-.resize-handle::before {
-    content: "";
-    position: absolute;
-    right: 2px;
-    bottom: 2px;
-    width: 10px;
-    height: 10px;
-    border-right: 2px solid black;
-    border-bottom: 2px solid black;
 }
 
 /* UI */
@@ -72,37 +57,32 @@ img {
     position: fixed;
     top: 10px;
     right: 10px;
-    padding: 6px 10px;
-    background: white;
-    border: none;
-    cursor: pointer;
     z-index: 9999;
 }
 #logoutBtn { display: none; }
 
-#loginBox {
+#loginBox, #tool {
     position: fixed;
+    background: white;
+    padding: 10px;
+    z-index: 9999;
+}
+
+#loginBox {
     top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
     display: none;
-    z-index: 9999;
 }
 
 #tool {
-    position: fixed;
     top: 50px;
     right: 10px;
-    background: white;
-    padding: 10px;
+    width: 230px;
     display: none;
-    z-index: 9999;
-    width: 220px;
 }
 
-#tool button, #tool input {
+#tool input, #tool button {
     width: 100%;
     margin-bottom: 5px;
 }
@@ -115,8 +95,8 @@ img {
 <button id="logoutBtn">Logout</button>
 
 <div id="loginBox">
-    <input id="user" placeholder="user"><br><br>
-    <input id="pass" type="password" placeholder="pass"><br><br>
+    <input id="user"><br><br>
+    <input id="pass" type="password"><br><br>
     <button id="okBtn">OK</button>
 </div>
 
@@ -129,6 +109,18 @@ img {
 
     Font Size:
     <input id="size" type="number" value="16">
+
+    Border Size:
+    <input id="borderSize" type="number" value="2">
+
+    Border Color:
+    <input id="borderColor" type="color">
+
+    Background:
+    <input id="bgColor" type="color">
+
+    Text Color:
+    <input id="textColor" type="color">
 </div>
 
 <div id="container">
@@ -138,12 +130,9 @@ img {
 <script>
 let isLogin = false;
 let currentBox = null;
-let historyStack = [];
+let backupStyle = null;
 
-let scale = 1;
-let offsetX = 0;
-let offsetY = 0;
-
+let scale = 1, offsetX = 0, offsetY = 0;
 const container = document.getElementById("container");
 
 /* AUTO LOAD */
@@ -156,227 +145,183 @@ window.onload = ()=>{
 };
 
 /* LOGIN */
-loginBtn.onclick = () => loginBox.style.display = "block";
+loginBtn.onclick = ()=> loginBox.style.display="block";
 
-okBtn.onclick = () => {
-    if (user.value === "a" && pass.value === "1") {
-        isLogin = true;
-        loginBox.style.display = "none";
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "block";
-        tool.style.display = "block";
-    } else alert("Wrong");
+okBtn.onclick = ()=>{
+    if(user.value==="a" && pass.value==="1"){
+        isLogin=true;
+        loginBox.style.display="none";
+        loginBtn.style.display="none";
+        logoutBtn.style.display="block";
+        tool.style.display="block";
+    }
 };
 
-logoutBtn.onclick = () => {
-    isLogin = false;
-    loginBtn.style.display = "block";
-    logoutBtn.style.display = "none";
-    tool.style.display = "none";
+logoutBtn.onclick = ()=>{
+    isLogin=false;
+    loginBtn.style.display="block";
+    logoutBtn.style.display="none";
+    tool.style.display="none";
 };
 
 /* ADD BOX */
-addBtn.onclick = () => {
+addBtn.onclick = ()=>{
     if(!isLogin) return;
 
     const box = document.createElement("div");
-    box.className = "box";
-    box.innerText = "New";
-    box.style.top = "100px";
-    box.style.left = "100px";
+    box.className="box";
+    box.innerText="New";
+    box.style.top="100px";
+    box.style.left="100px";
 
-    const handle = document.createElement("div");
-    handle.className = "resize-handle";
+    const handle=document.createElement("div");
+    handle.className="resize-handle";
     box.appendChild(handle);
 
     container.appendChild(box);
-
-    enableDrag(box);
-    enableResize(box, handle);
-
-    box.onclick = (e)=>{
-        e.stopPropagation();
-        selectBox(box);
-    };
+    enable(box);
 };
 
 /* SELECT */
 function selectBox(box){
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
     box.classList.add("active");
-    currentBox = box;
+    currentBox=box;
+
+    // backup để ESC
+    backupStyle = box.style.cssText;
 
     text.value = box.innerText;
-    size.value = parseInt(window.getComputedStyle(box).fontSize);
+    size.value = parseInt(getComputedStyle(box).fontSize);
+    borderSize.value = parseInt(getComputedStyle(box).borderWidth);
+    borderColor.value = rgb2hex(getComputedStyle(box).borderColor);
+    bgColor.value = rgb2hex(getComputedStyle(box).backgroundColor);
+    textColor.value = rgb2hex(getComputedStyle(box).color);
 }
 
-/* UPDATE TEXT */
-text.oninput = ()=>{
-    if(currentBox) currentBox.innerText = text.value;
-};
+/* COLOR CONVERT */
+function rgb2hex(rgb){
+    const nums = rgb.match(/\d+/g);
+    return "#" + nums.slice(0,3).map(x=>(+x).toString(16).padStart(2,"0")).join("");
+}
 
-/* UPDATE SIZE */
-size.oninput = ()=>{
-    if(currentBox) currentBox.style.fontSize = size.value + "px";
-};
+/* LIVE UPDATE */
+text.oninput = ()=> currentBox && (currentBox.innerText = text.value);
+size.oninput = ()=> currentBox && (currentBox.style.fontSize = size.value+"px");
+borderSize.oninput = ()=> currentBox && (currentBox.style.borderWidth = borderSize.value+"px");
 
-/* DELETE */
-document.addEventListener("keydown", (e)=>{
-    if(!isLogin) return;
+borderColor.oninput = ()=> currentBox && (currentBox.style.borderColor = borderColor.value);
+bgColor.oninput = ()=> currentBox && (currentBox.style.backgroundColor = bgColor.value);
+textColor.oninput = ()=> currentBox && (currentBox.style.color = textColor.value);
 
-    if(e.key === "Delete" && currentBox){
-        currentBox.remove();
-        currentBox = null;
+/* DOUBLE CLICK = LOCK (không làm gì thêm vì đã apply rồi) */
+
+/* ESC = UNDO STYLE */
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape" && currentBox && backupStyle){
+        currentBox.style.cssText = backupStyle;
     }
 });
 
-/* SAVE */
-saveBtn.onclick = () => {
-    localStorage.setItem("familyTree", container.innerHTML);
-};
+/* ENABLE */
+function enable(box){
+    const handle = box.querySelector(".resize-handle");
 
-/* REBIND */
+    box.onclick = e=>{
+        e.stopPropagation();
+        selectBox(box);
+    };
+
+    enableDrag(box);
+    enableResize(box, handle);
+}
+
 function rebind(){
-    document.querySelectorAll(".box").forEach(box=>{
-        const handle = box.querySelector(".resize-handle");
-
-        enableDrag(box);
-        enableResize(box, handle);
-
-        box.onclick = (e)=>{
-            e.stopPropagation();
-            selectBox(box);
-        };
-    });
+    document.querySelectorAll(".box").forEach(enable);
 }
 
 /* DRAG */
-let draggingBox = null;
-let dragDX = 0;
-let dragDY = 0;
-
-document.addEventListener("mousemove", (e)=>{
-    if(!draggingBox) return;
-
-    draggingBox.style.left = (e.clientX/scale - dragDX) + "px";
-    draggingBox.style.top = (e.clientY/scale - dragDY) + "px";
+let dragging=null,dx,dy;
+document.addEventListener("mousemove",e=>{
+    if(!dragging) return;
+    dragging.style.left=(e.clientX/scale-dx)+"px";
+    dragging.style.top=(e.clientY/scale-dy)+"px";
 });
-
-document.addEventListener("mouseup", ()=>{
-    draggingBox = null;
-});
+document.addEventListener("mouseup",()=>dragging=null);
 
 function enableDrag(box){
-    box.addEventListener("mousedown", (e)=>{
+    box.onmousedown=e=>{
         if(!isLogin) return;
         if(e.target.classList.contains("resize-handle")) return;
-
-        draggingBox = box;
-        dragDX = e.clientX/scale - box.offsetLeft;
-        dragDY = e.clientY/scale - box.offsetTop;
-    });
+        dragging=box;
+        dx=e.clientX/scale-box.offsetLeft;
+        dy=e.clientY/scale-box.offsetTop;
+    };
 }
 
 /* RESIZE */
-let resizingBox = null;
-let startX, startY, startW, startH;
-
-document.addEventListener("mousemove", (e)=>{
-    if(!resizingBox) return;
-
-    let dx = (e.clientX - startX)/scale;
-    let dy = (e.clientY - startY)/scale;
-
-    resizingBox.style.width = (startW + dx) + "px";
-    resizingBox.style.height = (startH + dy) + "px";
+let resizing=null,sx,sy,sw,sh;
+document.addEventListener("mousemove",e=>{
+    if(!resizing) return;
+    resizing.style.width=(sw+(e.clientX-sx)/scale)+"px";
+    resizing.style.height=(sh+(e.clientY-sy)/scale)+"px";
 });
+document.addEventListener("mouseup",()=>resizing=null);
 
-document.addEventListener("mouseup", ()=>{
-    resizingBox = null;
-});
-
-function enableResize(box, handle){
-    handle.addEventListener("mousedown", (e)=>{
+function enableResize(box,handle){
+    handle.onmousedown=e=>{
         if(!isLogin) return;
         e.stopPropagation();
-
-        resizingBox = box;
-        startX = e.clientX;
-        startY = e.clientY;
-        startW = box.offsetWidth;
-        startH = box.offsetHeight;
-    });
+        resizing=box;
+        sx=e.clientX;
+        sy=e.clientY;
+        sw=box.offsetWidth;
+        sh=box.offsetHeight;
+    };
 }
 
 /* PAN */
-let panning = false;
-let startPX, startPY;
-
-document.addEventListener("mousedown", (e)=>{
-    if(e.button !== 0) return;
+let panning=false,px,py;
+document.addEventListener("mousedown",e=>{
     if(e.target.closest(".box")) return;
-
-    panning = true;
-    startPX = e.clientX;
-    startPY = e.clientY;
+    panning=true;
+    px=e.clientX; py=e.clientY;
 });
-
-document.addEventListener("mousemove", (e)=>{
+document.addEventListener("mousemove",e=>{
     if(!panning) return;
-
-    offsetX += (e.clientX - startPX);
-    offsetY += (e.clientY - startPY);
-
-    startPX = e.clientX;
-    startPY = e.clientY;
-
+    offsetX+=e.clientX-px;
+    offsetY+=e.clientY-py;
+    px=e.clientX; py=e.clientY;
     updateTransform();
 });
-
-document.addEventListener("mouseup", ()=> panning = false);
+document.addEventListener("mouseup",()=>panning=false);
 
 /* TRANSFORM */
 function updateTransform(){
-    container.style.transform =
-        `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    container.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`;
 }
 
-/* ZOOM CTRL + WHEEL */
-document.addEventListener("wheel", (e)=>{
+/* ZOOM CTRL */
+document.addEventListener("wheel",e=>{
     if(!e.ctrlKey) return;
-
     e.preventDefault();
 
-    const zoomSpeed = 0.1;
-    const rect = container.getBoundingClientRect();
+    let newScale=scale+(e.deltaY<0?0.1:-0.1);
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    let newScale = scale;
-
-    if(e.deltaY < 0){
-        newScale += zoomSpeed;
-    } else {
-        newScale -= zoomSpeed;
-    }
-
-    if(newScale <= 1){
-        scale = 1;
-        offsetX = 0;
-        offsetY = 0;
+    if(newScale<=1){
+        scale=1; offsetX=0; offsetY=0;
         updateTransform();
         return;
     }
 
-    offsetX -= (mouseX / scale) * (newScale - scale);
-    offsetY -= (mouseY / scale) * (newScale - scale);
-
-    scale = newScale;
-
+    scale=newScale;
     updateTransform();
-}, { passive: false });
+},{passive:false});
 
+/* SAVE */
+saveBtn.onclick=()=>{
+    localStorage.setItem("familyTree",container.innerHTML);
+};
 </script>
 
 </body>
