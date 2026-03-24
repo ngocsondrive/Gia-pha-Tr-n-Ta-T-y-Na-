@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Gia phả</title>
+<title>Family Tree</title>
 
 <style>
 body {
@@ -27,12 +27,12 @@ img {
 <body>
 
 <div id="container">
-    <img id="img" src="Background.jpg">
+    <img id="image" src="Background.jpg">
 </div>
 
 <script>
 let scale = 1;
-const img = document.getElementById("img");
+const image = document.getElementById("image");
 
 window.addEventListener("wheel", function(e) {
     if (e.ctrlKey) {
@@ -44,9 +44,9 @@ window.addEventListener("wheel", function(e) {
             scale -= 0.1; // zoom out
         }
 
-        scale = Math.max(0.5, Math.min(scale, 5)); // giới hạn zoom
+        scale = Math.max(0.5, Math.min(scale, 5)); // zoom limit
 
-        img.style.transform = "scale(" + scale + ")";
+        image.style.transform = "scale(" + scale + ")";
     }
 }, { passive: false });
 </script>
