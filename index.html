@@ -198,7 +198,7 @@ let selectedLine=null;
 let draggingLine=null;
 let dragOffset={x:0,y:0};
 let dragPart=null;
-const snapDistance=15; // Khoảng cách snap
+const snapDistance=15; // Khoảng cách để snap
 
 drawLineBtn.onclick=()=>{
     if(!isLogin) return;
@@ -206,7 +206,7 @@ drawLineBtn.onclick=()=>{
     document.body.classList.add("lineCursor");
 };
 
-/* Vẽ line mới ngang/dọc */
+// Vẽ line mới (chỉ ngang hoặc dọc)
 container.addEventListener("mousedown", e=>{
     if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
@@ -241,14 +241,17 @@ container.addEventListener("mousedown", e=>{
         let x2=e.clientX/scale - offsetX/scale;
         let y2=e.clientY/scale - offsetY/scale;
 
-        // Chỉ ngang hoặc dọc
-        if(Math.abs(x2-x1) > Math.abs(y2-y1)){
-            y2 = y1;
+        let dx = Math.abs(x2 - x1);
+        let dy = Math.abs(y2 - y1);
+
+        if(dx > dy){
+            y2 = y1; // ngang
         } else {
-            x2 = x1;
+            x2 = x1; // dọc
         }
 
-        line.dataset.x2=x2; line.dataset.y2=y2;
+        line.dataset.x2 = x2;
+        line.dataset.y2 = y2;
         updateLine(line);
     }
 
@@ -263,11 +266,21 @@ container.addEventListener("mousedown", e=>{
     container.addEventListener("mouseup",onUp);
 });
 
-/* Line style update */
-lineColorInput.oninput = () => { if(selectedLine){ saveHistory(); selectedLine.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`; } };
-lineWidthInput.oninput = () => { if(selectedLine){ saveHistory(); selectedLine.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`; } };
+/* Chỉnh màu và độ dày cho line đang chọn */
+lineColorInput.oninput = () => {
+    if (selectedLine) {
+        saveHistory();
+        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
+    }
+};
+lineWidthInput.oninput = () => {
+    if (selectedLine) {
+        saveHistory();
+        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
+    }
+};
 
-/* LINE THÔNG MINH + SNAP khi kéo và thả */
+/* LINE THÔNG MINH + SNAP */
 function enableLine(line){
     const threshold=30/scale;
     line.addEventListener("mousemove", e=>{
@@ -275,6 +288,7 @@ function enableLine(line){
         let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
         let mx=e.clientX/scale - offsetX/scale;
         let my=e.clientY/scale - offsetY/scale;
+
         let dx=x2-x1, dy=y2-y1;
         let len=Math.sqrt(dx*dx+dy*dy);
         let distance=Math.abs(dy*mx - dx*my + x2*y1 - y2*x1)/len;
@@ -292,8 +306,8 @@ function enableLine(line){
         selectedLine=line;
         line.classList.add("active");
 
-        lineColorInput.value=getComputedStyle(line).borderTopColor;
-        lineWidthInput.value=parseInt(getComputedStyle(line).borderTopWidth);
+        lineColorInput.value = getComputedStyle(line).borderTopColor;
+        lineWidthInput.value = parseInt(getComputedStyle(line).borderTopWidth);
 
         let x1=parseFloat(line.dataset.x1), y1=parseFloat(line.dataset.y1);
         let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
@@ -313,19 +327,6 @@ function enableLine(line){
     });
 }
 
-function snapLinePoint(x,y,currentLine){
-    let snapX=x, snapY=y;
-    document.querySelectorAll(".line").forEach(l=>{
-        if(l===currentLine) return;
-        [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
-            if(Math.hypot(x-lx,y-ly)<snapDistance){
-                snapX=lx; snapY=ly;
-            }
-        });
-    });
-    return [snapX,snapY];
-}
-
 function moveLine(e){
     if(!draggingLine) return;
     let mx=e.clientX/scale - offsetX/scale;
@@ -337,10 +338,28 @@ function moveLine(e){
     let y2=parseFloat(draggingLine.dataset.y2);
 
     if(dragPart==="start"){
-        [x1,y1]=snapLinePoint(mx,my,draggingLine);
+        x1=mx; y1=my;
+        // SNAP ĐẦU
+        document.querySelectorAll(".line").forEach(l=>{
+            if(l===draggingLine) return;
+            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
+                if(Math.hypot(x1-lx,y1-ly)<snapDistance){
+                    x1=lx; y1=ly;
+                }
+            });
+        });
         draggingLine.dataset.x1=x1; draggingLine.dataset.y1=y1;
     } else if(dragPart==="end"){
-        [x2,y2]=snapLinePoint(mx,my,draggingLine);
+        x2=mx; y2=my;
+        // SNAP ĐẦU
+        document.querySelectorAll(".line").forEach(l=>{
+            if(l===draggingLine) return;
+            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
+                if(Math.hypot(x2-lx,y2-ly)<snapDistance){
+                    x2=lx; y2=ly;
+                }
+            });
+        });
         draggingLine.dataset.x2=x2; draggingLine.dataset.y2=y2;
     } else if(dragPart==="middle"){
         let dxMove=mx-(x1+(x2-x1)/2);
@@ -362,16 +381,10 @@ function moveLine(e){
 }
 
 function stopMoveLine(){
-    // Snap lần cuối khi thả chuột
-    if(draggingLine){
-        let x1=parseFloat(draggingLine.dataset.x1);
-        let y1=parseFloat(draggingLine.dataset.y1);
-        let x2=parseFloat(draggingLine.dataset.x2);
-        let y2=parseFloat(draggingLine.dataset.y2);
-        [x1,y1]=snapLinePoint(x1,y1,draggingLine);
-        [x2,y2]=snapLinePoint(x2,y2,draggingLine);
-        draggingLine.dataset.x1=x1; draggingLine.dataset.y1=y1;
-        draggingLine.dataset.x2=x2; draggingLine.dataset.y2=y2;
-
-        let dxLine=x2-x1;
-        let dyLine=y2-y1;
+    document.removeEventListener("mousemove", moveLine);
+    document.removeEventListener("mouseup", stopMoveLine);
+    draggingLine=null; dragPart=null;
+}
+</script>
+</body>
+</html>
