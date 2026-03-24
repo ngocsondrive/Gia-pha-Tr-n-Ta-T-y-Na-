@@ -5,6 +5,23 @@
 <title>Family Tree</title>
 
 <style>
+    #container {
+    position: relative;
+}
+
+#box {
+    position: absolute;
+    top: 200px;
+    left: 300px;
+    width: 120px;
+    height: 60px;
+    background: white;
+    border: 2px solid black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
 body {
     margin: 0;
     overflow: auto;
@@ -16,6 +33,7 @@ body {
 }
 
 img {
+    <div id="box">Trần Lợi Vưu</div>
     width: 100%;
     height: auto;
     display: block;
@@ -46,7 +64,7 @@ window.addEventListener("wheel", function(e) {
 
         scale = Math.max(0.5, Math.min(scale, 5)); // zoom limit
 
-        image.style.transform = "scale(" + scale + ")";
+        document.getElementById("container").style.transform = "scale(" + scale + ")";
     }
 }, { passive: false });
 </script>
