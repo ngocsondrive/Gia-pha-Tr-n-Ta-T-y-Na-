@@ -52,7 +52,6 @@ img {
     width: 18px;
     height: 18px;
     cursor: nwse-resize;
-    background: none;
     opacity: 0;
 }
 .box:hover .resize-handle { opacity: 1; }
@@ -68,7 +67,7 @@ img {
     border-bottom: 2px solid black;
 }
 
-/* BUTTON */
+/* UI */
 #loginBtn, #logoutBtn {
     position: fixed;
     top: 10px;
@@ -81,7 +80,6 @@ img {
 }
 #logoutBtn { display: none; }
 
-/* LOGIN */
 #loginBox {
     position: fixed;
     top: 40%;
@@ -93,7 +91,6 @@ img {
     z-index: 9999;
 }
 
-/* TOOL */
 #tool {
     position: fixed;
     top: 50px;
@@ -105,12 +102,7 @@ img {
     width: 220px;
 }
 
-#tool button {
-    width: 100%;
-    margin-bottom: 5px;
-}
-
-#tool input {
+#tool button, #tool input {
     width: 100%;
     margin-bottom: 5px;
 }
@@ -131,7 +123,6 @@ img {
 <div id="tool">
     <button id="addBtn">+ Add Box</button>
     <button id="saveBtn">💾 Save</button>
-    <button id="loadBtn">📂 Load</button>
 
     Text:
     <input id="text">
@@ -154,6 +145,15 @@ let offsetX = 0;
 let offsetY = 0;
 
 const container = document.getElementById("container");
+
+/* AUTO LOAD */
+window.onload = ()=>{
+    const data = localStorage.getItem("familyTree");
+    if(data){
+        container.innerHTML = data;
+        rebind();
+    }
+};
 
 /* LOGIN */
 loginBtn.onclick = () => loginBox.style.display = "block";
@@ -178,8 +178,6 @@ logoutBtn.onclick = () => {
 /* ADD BOX */
 addBtn.onclick = () => {
     if(!isLogin) return;
-
-    saveHistory();
 
     const box = document.createElement("div");
     box.className = "box";
@@ -207,48 +205,34 @@ function selectBox(box){
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
     box.classList.add("active");
     currentBox = box;
+
+    text.value = box.innerText;
+    size.value = parseInt(window.getComputedStyle(box).fontSize);
 }
 
-document.addEventListener("click", ()=>{
-    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-    currentBox = null;
-});
+/* UPDATE TEXT */
+text.oninput = ()=>{
+    if(currentBox) currentBox.innerText = text.value;
+};
 
-/* DELETE + UNDO */
+/* UPDATE SIZE */
+size.oninput = ()=>{
+    if(currentBox) currentBox.style.fontSize = size.value + "px";
+};
+
+/* DELETE */
 document.addEventListener("keydown", (e)=>{
     if(!isLogin) return;
 
     if(e.key === "Delete" && currentBox){
-        saveHistory();
         currentBox.remove();
         currentBox = null;
     }
-
-    if(e.ctrlKey && e.key.toLowerCase() === "z"){
-        undo();
-    }
 });
-
-/* HISTORY */
-function saveHistory(){
-    historyStack.push(container.innerHTML);
-}
-
-function undo(){
-    if(historyStack.length === 0) return;
-    container.innerHTML = historyStack.pop();
-    rebind();
-}
 
 /* SAVE */
 saveBtn.onclick = () => {
     localStorage.setItem("familyTree", container.innerHTML);
-};
-
-/* LOAD */
-loadBtn.onclick = () => {
-    container.innerHTML = localStorage.getItem("familyTree") || "";
-    rebind();
 };
 
 /* REBIND */
@@ -357,7 +341,7 @@ function updateTransform(){
         `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
-/* ===== ZOOM CTRL + WHEEL (FIX LỆCH) ===== */
+/* ZOOM CTRL + WHEEL */
 document.addEventListener("wheel", (e)=>{
     if(!e.ctrlKey) return;
 
