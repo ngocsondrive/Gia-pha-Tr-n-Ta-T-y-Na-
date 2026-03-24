@@ -9,7 +9,7 @@ body {
     margin: 0;
     background: #000;
     font-family: Arial;
-    overflow: hidden;
+    overflow: auto; /* ✅ trả lại scroll */
     cursor: grab;
 }
 body:active {
@@ -42,7 +42,7 @@ img {
     overflow: visible;
 }
 
-/* HANDLE (ẩn → hover mới hiện) */
+/* HANDLE */
 .resize-handle {
     position: absolute;
     right: -8px;
@@ -54,11 +54,9 @@ img {
     opacity: 0;
     transition: 0.2s;
 }
-
 .box:hover .resize-handle {
     opacity: 1;
 }
-
 .resize-handle::before {
     content: "";
     position: absolute;
@@ -107,6 +105,19 @@ img {
     width: 220px;
 }
 
+/* ✅ nút thu nhỏ */
+#toggleTool {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+}
+
+#tool.collapsed {
+    height: 30px;
+    overflow: hidden;
+}
+
 #tool input, #tool select {
     width: 100%;
     margin-bottom: 5px;
@@ -126,6 +137,8 @@ img {
 </div>
 
 <div id="tool">
+    <div id="toggleTool">−</div>
+
     <button id="addBtn">+ Add Box</button><br><br>
 
     Text:
@@ -189,6 +202,11 @@ logoutBtn.onclick = () => {
     loginBtn.style.display = "block";
     logoutBtn.style.display = "none";
     tool.style.display = "none";
+};
+
+/* ✅ toggle tool */
+toggleTool.onclick = () => {
+    tool.classList.toggle("collapsed");
 };
 
 /* CREATE BOX */
@@ -303,14 +321,17 @@ window.addEventListener("wheel", (e)=>{
     }
 }, { passive:false });
 
-/* PAN */
-let panning = false, startX, startY;
+/* ✅ PAN CHUẨN: giữ chuột mới kéo */
+let panning = false;
+let moved = false;
+let startX, startY;
 
 document.addEventListener("mousedown", (e)=>{
     if(e.button !== 0) return;
     if(e.target.closest(".box")) return;
 
     panning = true;
+    moved = false;
     startX = e.clientX;
     startY = e.clientY;
 });
@@ -318,17 +339,27 @@ document.addEventListener("mousedown", (e)=>{
 document.addEventListener("mousemove", (e)=>{
     if(!panning) return;
 
-    offsetX += (e.clientX - startX);
-    offsetY += (e.clientY - startY);
+    let dx = e.clientX - startX;
+    let dy = e.clientY - startY;
 
-    startX = e.clientX;
-    startY = e.clientY;
+    if(Math.abs(dx) > 2 || Math.abs(dy) > 2){
+        moved = true;
+    }
 
-    updateTransform();
+    if(moved){
+        offsetX += dx;
+        offsetY += dy;
+
+        startX = e.clientX;
+        startY = e.clientY;
+
+        updateTransform();
+    }
 });
 
-document.addEventListener("mouseup", ()=> panning = false);
-
+document.addEventListener("mouseup", ()=>{
+    panning = false;
+});
 </script>
 
 </body>
