@@ -29,7 +29,7 @@ img { width:100%; }
 .line.active { outline:2px dashed yellow; }
 .handle {
     position:absolute; width:12px; height:12px; background:#fff; border:2px solid #000;
-    border-radius:50%; cursor:pointer; display:none; z-index:1000;
+    border-radius:50%; cursor:pointer; z-index:1000;
 }
 
 /* TOOLBOX */
@@ -106,7 +106,7 @@ img { width:100%; }
 <script>
 let isLogin=false,currentBox=null,scale=1,offsetX=0,offsetY=0,historyStack=[];
 let drawLineMode=false,currentLine=null;
-let startX=0,startY=0;
+
 const container=document.getElementById("container");
 
 /* AUTO LOAD */
@@ -172,7 +172,6 @@ function enable(box){
 }
 function rebind(){
     document.querySelectorAll(".box").forEach(enable);
-    document.querySelectorAll(".line").forEach(enableLine);
 }
 
 /* DRAG BOX */
@@ -198,65 +197,77 @@ document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault()
 /* SAVE */
 saveBtn.onclick=()=>{ localStorage.setItem("familyTree",container.innerHTML); alert("Đã lưu!"); };
 
-/* LINE TOOL */
-const drawLineBtn=document.getElementById("drawLineBtn");
-const lineColorInput=document.getElementById("lineColor");
-const lineWidthInput=document.getElementById("lineWidth");
+/* LINE TOOL THÔNG MINH */
+const drawLineButton=document.getElementById("drawLineBtn");
+const lineColor=document.getElementById("lineColor");
+const lineWidth=document.getElementById("lineWidth");
+let activeLine=null, resizingStart=false, resizingEnd=false;
 
-drawLineBtn.onclick=()=>{
+drawLineButton.onclick=()=>{
     if(!isLogin) return;
     drawLineMode=true;
     document.body.classList.add("lineCursor");
 };
 
 container.addEventListener("mousedown", e=>{
-    if(!drawLineMode) return;
-    if(e.target.closest(".box")) return;
+    if(!drawLineMode || e.target.closest(".box")) return;
 
     saveHistory();
-    startX=e.clientX/scale - offsetX/scale;
-    startY=e.clientY/scale - offsetY/scale;
+    let startX=e.clientX/scale - offsetX/scale;
+    let startY=e.clientY/scale - offsetY/scale;
 
     const line=document.createElement("div");
     line.className="line";
-    line.style.left=startX+"px"; line.style.top=startY+"px";
-    line.style.width="0px"; line.style.height="2px";
-    line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
+    line.style.left=startX+"px";
+    line.style.top=startY+"px";
+    line.style.width="0px";
+    line.style.height="2px";
+    line.style.borderTop=`${lineWidth.value}px solid ${lineColor.value}`;
     container.appendChild(line);
-    currentLine=line;
+
+    // tạo 2 handls
+    const startHandle=document.createElement("div");
+    const endHandle=document.createElement("div");
+    startHandle.className="handle"; endHandle.className="handle";
+    container.appendChild(startHandle);
+    container.appendChild(endHandle);
+
+    function updateHandles(){
+        const left=parseFloat(line.style.left);
+        const top=parseFloat(line.style.top);
+        const width=parseFloat(line.style.width);
+        const transform = line.style.transform.match(/rotate\((-?\d+\.?\d*)deg\)/);
+        const deg = transform ? parseFloat(transform[1])*Math.PI/180 : 0;
+        startHandle.style.left=`${left}px`;
+        startHandle.style.top=`${top}px`;
+        endHandle.style.left=`${left + width*Math.cos(deg)}px`;
+        endHandle.style.top=`${top + width*Math.sin(deg)}px`;
+    }
+
+    updateHandles();
 
     function onMouseMove(e){
-        const x2=e.clientX/scale - offsetX/scale;
-        const y2=e.clientY/scale - offsetY/scale;
+        let x2=e.clientX/scale - offsetX/scale;
+        let y2=e.clientY/scale - offsetY/scale;
         const dx=x2-startX, dy=y2-startY;
         const length=Math.sqrt(dx*dx+dy*dy);
         const angle=Math.atan2(dy,dx)*180/Math.PI;
-        currentLine.style.width=length+"px";
-        currentLine.style.transform=`rotate(${angle}deg)`;
-        currentLine.style.transformOrigin="0 0";
+        line.style.width=length+"px";
+        line.style.transform=`rotate(${angle}deg)`;
+        line.style.transformOrigin="0 0";
+        updateHandles();
     }
 
-    function onMouseUp(e){
-        document.removeEventListener("mousemove",onMouseMove);
-        document.removeEventListener("mouseup",onMouseUp);
+    function onMouseUp(){
         drawLineMode=false;
         document.body.classList.remove("lineCursor");
-        enableLine(currentLine);
-        currentLine=null;
+        container.removeEventListener("mousemove",onMouseMove);
+        container.removeEventListener("mouseup",onMouseUp);
     }
 
-    document.addEventListener("mousemove",onMouseMove);
-    document.addEventListener("mouseup",onMouseUp);
+    container.addEventListener("mousemove",onMouseMove);
+    container.addEventListener("mouseup",onMouseUp);
 });
-
-/* ENABLE LINE with 2 end handles */
-function enableLine(line){
-    line.onclick=e=>{
-        e.stopPropagation();
-        document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
-        line.classList.add("active"); currentLine=line;
-    };
-}
 </script>
 </body>
 </html>
