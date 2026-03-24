@@ -82,7 +82,7 @@ img { width: 100%; }
     margin-bottom: 5px;
 }
 
-/* MINI TOOL BUTTON */
+/* MINI TOOL */
 #toggleTool {
     position: fixed;
     top: 50px;
@@ -229,6 +229,14 @@ function selectBox(box){
     size.value=parseInt(getComputedStyle(box).fontSize);
 }
 
+/* CLICK NGOÀI = UNSELECT */
+document.addEventListener("click",(e)=>{
+    if(e.target.closest(".box")) return;
+
+    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+    currentBox=null;
+});
+
 /* UPDATE */
 text.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.innerText=text.value;} };
 size.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.fontSize=size.value+"px"; } };
@@ -294,10 +302,12 @@ function enableResize(box,handle){
     };
 }
 
-/* PAN */
+/* PAN (CHỈ KHI ZOOM) */
 let panning=false,px,py;
 document.addEventListener("mousedown",e=>{
+    if(scale<=1) return;
     if(e.target.closest(".box")) return;
+
     panning=true;
     px=e.clientX; py=e.clientY;
 });
@@ -315,7 +325,7 @@ function updateTransform(){
     container.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`;
 }
 
-/* ZOOM */
+/* ZOOM CTRL */
 document.addEventListener("wheel",e=>{
     if(!e.ctrlKey) return;
     e.preventDefault();
