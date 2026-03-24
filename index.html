@@ -19,9 +19,7 @@ body:active { cursor: grabbing; }
     transform-origin: top left;
 }
 
-img {
-    width: 100%;
-}
+img { width: 100%; }
 
 /* BOX */
 .box {
@@ -34,13 +32,10 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
-    user-select: none;
     cursor: move;
 }
 
-.box.active {
-    outline: 3px dashed red;
-}
+.box.active { outline: 3px dashed red; }
 
 /* RESIZE */
 .resize-handle {
@@ -86,6 +81,15 @@ img {
     width: 100%;
     margin-bottom: 5px;
 }
+
+/* MINI TOOL BUTTON */
+#toggleTool {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 9999;
+    display: none;
+}
 </style>
 </head>
 
@@ -93,6 +97,7 @@ img {
 
 <button id="loginBtn">Login</button>
 <button id="logoutBtn">Logout</button>
+<button id="toggleTool">☰</button>
 
 <div id="loginBox">
     <input id="user"><br><br>
@@ -101,6 +106,7 @@ img {
 </div>
 
 <div id="tool">
+    <button id="collapseBtn">− Thu nhỏ</button>
     <button id="addBtn">+ Add Box</button>
     <button id="saveBtn">💾 Save</button>
 
@@ -128,27 +134,26 @@ img {
 </div>
 
 <script>
-let isLogin = false;
-let currentBox = null;
-let backupStyle = null;
+let isLogin=false, currentBox=null;
+let scale=1, offsetX=0, offsetY=0;
+let historyStack=[];
 
-let scale = 1, offsetX = 0, offsetY = 0;
-const container = document.getElementById("container");
+const container=document.getElementById("container");
 
 /* AUTO LOAD */
-window.onload = ()=>{
-    const data = localStorage.getItem("familyTree");
+window.onload=()=>{
+    const data=localStorage.getItem("familyTree");
     if(data){
-        container.innerHTML = data;
+        container.innerHTML=data;
         rebind();
     }
 };
 
 /* LOGIN */
-loginBtn.onclick = ()=> loginBox.style.display="block";
+loginBtn.onclick=()=>loginBox.style.display="block";
 
-okBtn.onclick = ()=>{
-    if(user.value==="a" && pass.value==="1"){
+okBtn.onclick=()=>{
+    if(user.value==="a"&&pass.value==="1"){
         isLogin=true;
         loginBox.style.display="none";
         loginBtn.style.display="none";
@@ -157,18 +162,50 @@ okBtn.onclick = ()=>{
     }
 };
 
-logoutBtn.onclick = ()=>{
+logoutBtn.onclick=()=>{
     isLogin=false;
     loginBtn.style.display="block";
     logoutBtn.style.display="none";
     tool.style.display="none";
+    toggleTool.style.display="none";
 };
 
-/* ADD BOX */
-addBtn.onclick = ()=>{
-    if(!isLogin) return;
+/* TOOL COLLAPSE */
+collapseBtn.onclick=()=>{
+    tool.style.display="none";
+    toggleTool.style.display="block";
+};
 
-    const box = document.createElement("div");
+toggleTool.onclick=()=>{
+    tool.style.display="block";
+    toggleTool.style.display="none";
+};
+
+/* HISTORY */
+function saveHistory(){
+    historyStack.push(container.innerHTML);
+    if(historyStack.length>50) historyStack.shift();
+}
+
+function undo(){
+    if(historyStack.length===0) return;
+    container.innerHTML=historyStack.pop();
+    rebind();
+}
+
+/* CTRL Z */
+document.addEventListener("keydown",e=>{
+    if(e.ctrlKey && e.key.toLowerCase()==="z"){
+        undo();
+    }
+});
+
+/* ADD BOX */
+addBtn.onclick=()=>{
+    if(!isLogin) return;
+    saveHistory();
+
+    const box=document.createElement("div");
     box.className="box";
     box.innerText="New";
     box.style.top="100px";
@@ -188,52 +225,29 @@ function selectBox(box){
     box.classList.add("active");
     currentBox=box;
 
-    // backup để ESC
-    backupStyle = box.style.cssText;
-
-    text.value = box.innerText;
-    size.value = parseInt(getComputedStyle(box).fontSize);
-    borderSize.value = parseInt(getComputedStyle(box).borderWidth);
-    borderColor.value = rgb2hex(getComputedStyle(box).borderColor);
-    bgColor.value = rgb2hex(getComputedStyle(box).backgroundColor);
-    textColor.value = rgb2hex(getComputedStyle(box).color);
+    text.value=box.innerText;
+    size.value=parseInt(getComputedStyle(box).fontSize);
 }
 
-/* COLOR CONVERT */
-function rgb2hex(rgb){
-    const nums = rgb.match(/\d+/g);
-    return "#" + nums.slice(0,3).map(x=>(+x).toString(16).padStart(2,"0")).join("");
-}
-
-/* LIVE UPDATE */
-text.oninput = ()=> currentBox && (currentBox.innerText = text.value);
-size.oninput = ()=> currentBox && (currentBox.style.fontSize = size.value+"px");
-borderSize.oninput = ()=> currentBox && (currentBox.style.borderWidth = borderSize.value+"px");
-
-borderColor.oninput = ()=> currentBox && (currentBox.style.borderColor = borderColor.value);
-bgColor.oninput = ()=> currentBox && (currentBox.style.backgroundColor = bgColor.value);
-textColor.oninput = ()=> currentBox && (currentBox.style.color = textColor.value);
-
-/* DOUBLE CLICK = LOCK (không làm gì thêm vì đã apply rồi) */
-
-/* ESC = UNDO STYLE */
-document.addEventListener("keydown",(e)=>{
-    if(e.key==="Escape" && currentBox && backupStyle){
-        currentBox.style.cssText = backupStyle;
-    }
-});
+/* UPDATE */
+text.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.innerText=text.value;} };
+size.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.fontSize=size.value+"px"; } };
+borderSize.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.borderWidth=borderSize.value+"px"; } };
+borderColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.borderColor=borderColor.value; } };
+bgColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.backgroundColor=bgColor.value; } };
+textColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.color=textColor.value; } };
 
 /* ENABLE */
 function enable(box){
-    const handle = box.querySelector(".resize-handle");
+    const handle=box.querySelector(".resize-handle");
 
-    box.onclick = e=>{
+    box.onclick=e=>{
         e.stopPropagation();
         selectBox(box);
     };
 
     enableDrag(box);
-    enableResize(box, handle);
+    enableResize(box,handle);
 }
 
 function rebind(){
@@ -253,6 +267,7 @@ function enableDrag(box){
     box.onmousedown=e=>{
         if(!isLogin) return;
         if(e.target.classList.contains("resize-handle")) return;
+        saveHistory();
         dragging=box;
         dx=e.clientX/scale-box.offsetLeft;
         dy=e.clientY/scale-box.offsetTop;
@@ -272,11 +287,10 @@ function enableResize(box,handle){
     handle.onmousedown=e=>{
         if(!isLogin) return;
         e.stopPropagation();
+        saveHistory();
         resizing=box;
-        sx=e.clientX;
-        sy=e.clientY;
-        sw=box.offsetWidth;
-        sh=box.offsetHeight;
+        sx=e.clientX; sy=e.clientY;
+        sw=box.offsetWidth; sh=box.offsetHeight;
     };
 }
 
@@ -301,7 +315,7 @@ function updateTransform(){
     container.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`;
 }
 
-/* ZOOM CTRL */
+/* ZOOM */
 document.addEventListener("wheel",e=>{
     if(!e.ctrlKey) return;
     e.preventDefault();
