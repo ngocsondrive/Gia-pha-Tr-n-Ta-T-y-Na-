@@ -9,7 +9,7 @@ body {
     margin: 0;
     background: #000;
     font-family: Arial;
-    overflow: auto; /* ✅ trả lại scroll */
+    overflow: auto;
     cursor: grab;
 }
 body:active {
@@ -42,6 +42,11 @@ img {
     overflow: visible;
 }
 
+/* ✅ box đang chọn */
+.box.active {
+    outline: 3px dashed red;
+}
+
 /* HANDLE */
 .resize-handle {
     position: absolute;
@@ -52,7 +57,6 @@ img {
     cursor: nwse-resize;
     background: none;
     opacity: 0;
-    transition: 0.2s;
 }
 .box:hover .resize-handle {
     opacity: 1;
@@ -81,18 +85,6 @@ img {
 }
 #logoutBtn { display: none; }
 
-/* LOGIN */
-#loginBox {
-    position: fixed;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    display: none;
-    z-index: 9999;
-}
-
 /* TOOL */
 #tool {
     position: fixed;
@@ -105,17 +97,9 @@ img {
     width: 220px;
 }
 
-/* ✅ nút thu nhỏ */
-#toggleTool {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    cursor: pointer;
-}
-
-#tool.collapsed {
-    height: 30px;
-    overflow: hidden;
+#tool button {
+    width: 100%;
+    margin-bottom: 5px;
 }
 
 #tool input, #tool select {
@@ -130,16 +114,10 @@ img {
 <button id="loginBtn">Login</button>
 <button id="logoutBtn">Logout</button>
 
-<div id="loginBox">
-    <input id="user" placeholder="user"><br><br>
-    <input id="pass" type="password" placeholder="pass"><br><br>
-    <button id="okBtn">OK</button>
-</div>
-
 <div id="tool">
-    <div id="toggleTool">−</div>
-
-    <button id="addBtn">+ Add Box</button><br><br>
+    <button id="addBtn">+ Add Box</button>
+    <button id="saveBtn">💾 Save</button>
+    <button id="loadBtn">📂 Load</button><br>
 
     Text:
     <input id="text">
@@ -153,18 +131,6 @@ img {
 
     Font Size:
     <input id="size" type="number" value="16">
-
-    Text Color:
-    <input id="textColor" type="color">
-
-    Background:
-    <input id="bgColor" type="color">
-
-    Border Color:
-    <input id="borderColor" type="color">
-
-    Border Width:
-    <input id="borderWidth" type="number" value="2">
 </div>
 
 <div id="container">
@@ -172,45 +138,21 @@ img {
 </div>
 
 <script>
-let isLogin = false;
+let isLogin = true;
 let currentBox = null;
+let historyStack = [];
 
 let scale = 1;
 const MIN_SCALE = 1;
-const MAX_SCALE = 3;
-
 let offsetX = 0;
 let offsetY = 0;
 
 const container = document.getElementById("container");
 
-/* LOGIN */
-loginBtn.onclick = () => loginBox.style.display = "block";
-
-okBtn.onclick = () => {
-    if (user.value === "a" && pass.value === "1") {
-        isLogin = true;
-        loginBox.style.display = "none";
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "block";
-        tool.style.display = "block";
-    } else alert("Wrong");
-};
-
-logoutBtn.onclick = () => {
-    isLogin = false;
-    loginBtn.style.display = "block";
-    logoutBtn.style.display = "none";
-    tool.style.display = "none";
-};
-
-/* ✅ toggle tool */
-toggleTool.onclick = () => {
-    tool.classList.toggle("collapsed");
-};
-
-/* CREATE BOX */
+/* ADD BOX */
 addBtn.onclick = () => {
+    saveHistory();
+
     const box = document.createElement("div");
     box.className = "box";
     box.innerText = "New";
@@ -226,24 +168,80 @@ addBtn.onclick = () => {
     enableDrag(box);
     enableResize(box, handle);
 
-    box.onclick = () => currentBox = box;
+    box.onclick = (e) => {
+        e.stopPropagation();
+        selectBox(box);
+    };
 };
 
-/* REALTIME */
-text.oninput = () => currentBox && (currentBox.innerText = text.value);
-font.oninput = () => currentBox && (currentBox.style.fontFamily = font.value);
-size.oninput = () => currentBox && (currentBox.style.fontSize = size.value + "px");
-textColor.oninput = () => currentBox && (currentBox.style.color = textColor.value);
-bgColor.oninput = () => currentBox && (currentBox.style.background = bgColor.value);
-borderColor.oninput = () => currentBox && (currentBox.style.border = borderWidth.value + "px solid " + borderColor.value);
-borderWidth.oninput = () => currentBox && (currentBox.style.border = borderWidth.value + "px solid " + borderColor.value);
+/* SELECT */
+function selectBox(box){
+    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+    box.classList.add("active");
+    currentBox = box;
+}
 
-/* DRAG BOX */
+/* CLICK NGOÀI */
+document.addEventListener("click", ()=>{
+    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+    currentBox = null;
+});
+
+/* DELETE */
+document.addEventListener("keydown", (e)=>{
+    if(e.key === "Delete" && currentBox){
+        saveHistory();
+        currentBox.remove();
+        currentBox = null;
+    }
+
+    if(e.ctrlKey && e.key.toLowerCase() === "z"){
+        undo();
+    }
+});
+
+/* HISTORY */
+function saveHistory(){
+    historyStack.push(container.innerHTML);
+}
+
+function undo(){
+    if(historyStack.length === 0) return;
+    container.innerHTML = historyStack.pop();
+    rebind();
+}
+
+/* SAVE */
+saveBtn.onclick = () => {
+    localStorage.setItem("familyTree", container.innerHTML);
+};
+
+/* LOAD */
+loadBtn.onclick = () => {
+    container.innerHTML = localStorage.getItem("familyTree") || "";
+    rebind();
+};
+
+/* REBIND */
+function rebind(){
+    document.querySelectorAll(".box").forEach(box=>{
+        const handle = box.querySelector(".resize-handle");
+
+        enableDrag(box);
+        enableResize(box, handle);
+
+        box.onclick = (e)=>{
+            e.stopPropagation();
+            selectBox(box);
+        };
+    });
+}
+
+/* DRAG */
 function enableDrag(box){
     let dragging = false, dx, dy;
 
     box.addEventListener("mousedown", (e)=>{
-        if(!isLogin) return;
         if(e.target.classList.contains("resize-handle")) return;
 
         dragging = true;
@@ -265,7 +263,6 @@ function enableResize(box, handle){
     let resizing = false, startX, startY, w, h;
 
     handle.addEventListener("mousedown", (e)=>{
-        if(!isLogin) return;
         e.stopPropagation();
 
         resizing = true;
@@ -288,42 +285,8 @@ function enableResize(box, handle){
     document.addEventListener("mouseup", ()=> resizing = false);
 }
 
-/* AUTO CENTER */
-function updateTransform(){
-    const img = container.querySelector("img");
-
-    const w = img.offsetWidth * scale;
-    const h = img.offsetHeight * scale;
-
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-
-    if (scale === MIN_SCALE) {
-        offsetX = (screenW - w) / 2;
-        offsetY = (screenH - h) / 2;
-    }
-
-    container.style.transform =
-        `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-}
-
-/* ZOOM */
-window.addEventListener("wheel", (e)=>{
-    if(e.ctrlKey){
-        e.preventDefault();
-
-        if(e.deltaY < 0) scale += 0.1;
-        else scale -= 0.1;
-
-        scale = Math.max(MIN_SCALE, Math.min(scale, MAX_SCALE));
-
-        updateTransform();
-    }
-}, { passive:false });
-
-/* ✅ PAN CHUẨN: giữ chuột mới kéo */
+/* PAN */
 let panning = false;
-let moved = false;
 let startX, startY;
 
 document.addEventListener("mousedown", (e)=>{
@@ -331,7 +294,6 @@ document.addEventListener("mousedown", (e)=>{
     if(e.target.closest(".box")) return;
 
     panning = true;
-    moved = false;
     startX = e.clientX;
     startY = e.clientY;
 });
@@ -339,27 +301,22 @@ document.addEventListener("mousedown", (e)=>{
 document.addEventListener("mousemove", (e)=>{
     if(!panning) return;
 
-    let dx = e.clientX - startX;
-    let dy = e.clientY - startY;
+    offsetX += (e.clientX - startX);
+    offsetY += (e.clientY - startY);
 
-    if(Math.abs(dx) > 2 || Math.abs(dy) > 2){
-        moved = true;
-    }
+    startX = e.clientX;
+    startY = e.clientY;
 
-    if(moved){
-        offsetX += dx;
-        offsetY += dy;
-
-        startX = e.clientX;
-        startY = e.clientY;
-
-        updateTransform();
-    }
+    updateTransform();
 });
 
-document.addEventListener("mouseup", ()=>{
-    panning = false;
-});
+document.addEventListener("mouseup", ()=> panning = false);
+
+/* TRANSFORM */
+function updateTransform(){
+    container.style.transform =
+        `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
 </script>
 
 </body>
