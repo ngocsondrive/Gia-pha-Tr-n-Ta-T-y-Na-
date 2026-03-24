@@ -198,6 +198,7 @@ let selectedLine=null;
 let draggingLine=null;
 let dragOffset={x:0,y:0};
 let dragPart=null;
+const snapDistance=15; // Khoảng cách để snap
 
 drawLineBtn.onclick=()=>{
     if(!isLogin) return;
@@ -265,7 +266,7 @@ container.addEventListener("mousedown", e=>{
     container.addEventListener("mouseup",onUp);
 });
 
-// Chỉnh màu và độ dày cho line đang chọn
+/* Chỉnh màu và độ dày cho line đang chọn */
 lineColorInput.oninput = () => {
     if (selectedLine) {
         saveHistory();
@@ -279,7 +280,7 @@ lineWidthInput.oninput = () => {
     }
 };
 
-// Line thông minh
+/* LINE THÔNG MINH + SNAP */
 function enableLine(line){
     const threshold=30/scale;
     line.addEventListener("mousemove", e=>{
@@ -337,24 +338,42 @@ function moveLine(e){
     let y2=parseFloat(draggingLine.dataset.y2);
 
     if(dragPart==="start"){
-        draggingLine.dataset.x1=mx;
-        draggingLine.dataset.y1=my;
+        x1=mx; y1=my;
+        // SNAP ĐẦU
+        document.querySelectorAll(".line").forEach(l=>{
+            if(l===draggingLine) return;
+            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
+                if(Math.hypot(x1-lx,y1-ly)<snapDistance){
+                    x1=lx; y1=ly;
+                }
+            });
+        });
+        draggingLine.dataset.x1=x1; draggingLine.dataset.y1=y1;
     } else if(dragPart==="end"){
-        draggingLine.dataset.x2=mx;
-        draggingLine.dataset.y2=my;
+        x2=mx; y2=my;
+        // SNAP ĐẦU
+        document.querySelectorAll(".line").forEach(l=>{
+            if(l===draggingLine) return;
+            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
+                if(Math.hypot(x2-lx,y2-ly)<snapDistance){
+                    x2=lx; y2=ly;
+                }
+            });
+        });
+        draggingLine.dataset.x2=x2; draggingLine.dataset.y2=y2;
     } else if(dragPart==="middle"){
-        let dx=mx-(x1+(x2-x1)/2);
-        let dy=my-(y1+(y2-y1)/2);
-        draggingLine.dataset.x1=x1+dx;
-        draggingLine.dataset.y1=y1+dy;
-        draggingLine.dataset.x2=x2+dx;
-        draggingLine.dataset.y2=y2+dy;
+        let dxMove=mx-(x1+(x2-x1)/2);
+        let dyMove=my-(y1+(y2-y1)/2);
+        draggingLine.dataset.x1=x1+dxMove;
+        draggingLine.dataset.y1=y1+dyMove;
+        draggingLine.dataset.x2=x2+dxMove;
+        draggingLine.dataset.y2=y2+dyMove;
     }
 
-    let dx=draggingLine.dataset.x2-draggingLine.dataset.x1;
-    let dy=draggingLine.dataset.y2-draggingLine.dataset.y1;
-    let len=Math.sqrt(dx*dx+dy*dy);
-    let angle=Math.atan2(dy,dx)*180/Math.PI;
+    let dxLine=draggingLine.dataset.x2-draggingLine.dataset.x1;
+    let dyLine=draggingLine.dataset.y2-draggingLine.dataset.y1;
+    let len=Math.sqrt(dxLine*dxLine+dyLine*dyLine);
+    let angle=Math.atan2(dyLine,dxLine)*180/Math.PI;
     draggingLine.style.width=len+"px";
     draggingLine.style.transform=`rotate(${angle}deg)`;
     draggingLine.style.left=draggingLine.dataset.x1+"px";
