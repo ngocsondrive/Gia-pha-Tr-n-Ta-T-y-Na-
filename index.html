@@ -47,6 +47,15 @@ img { width: 100%; }
     cursor: nwse-resize;
 }
 
+/* LINE */
+.line {
+    position: absolute;
+    pointer-events: all;
+    cursor: pointer;
+}
+
+.line.active { outline: 2px dashed yellow; }
+
 /* UI */
 #loginBtn, #logoutBtn {
     position: fixed;
@@ -73,14 +82,13 @@ img { width: 100%; }
 #tool {
     top: 50px;
     right: 10px;
-    width: 230px;
+    width: 250px;
     display: none;
+    border: 2px solid black;
+    border-radius: 5px;
 }
 
-#tool input, #tool button {
-    width: 100%;
-    margin-bottom: 5px;
-}
+#tool h3 { margin:0 0 5px 0; font-size:16px; text-align:center; }
 
 /* MINI TOOL */
 #toggleTool {
@@ -89,6 +97,19 @@ img { width: 100%; }
     right: 10px;
     z-index: 9999;
     display: none;
+}
+
+#tool input, #tool button, #tool label {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+/* LINE TOOL */
+#lineOptions {
+    display: none;
+    margin-top: 10px;
+    border-top: 1px solid #aaa;
+    padding-top: 5px;
 }
 </style>
 </head>
@@ -100,12 +121,13 @@ img { width: 100%; }
 <button id="toggleTool">☰</button>
 
 <div id="loginBox">
-    <input id="user"><br><br>
-    <input id="pass" type="password"><br><br>
+    <input id="user" placeholder="Username"><br><br>
+    <input id="pass" type="password" placeholder="Password"><br><br>
     <button id="okBtn">OK</button>
 </div>
 
 <div id="tool">
+    <h3>Tool Box</h3>
     <button id="collapseBtn">− Thu nhỏ</button>
     <button id="addBtn">+ Add Box</button>
     <button id="saveBtn">💾 Save</button>
@@ -127,6 +149,13 @@ img { width: 100%; }
 
     Text Color:
     <input id="textColor" type="color">
+
+    <!-- LINE TOOL -->
+    <label><input type="checkbox" id="lineMode"> Vẽ đường thẳng</label>
+    <div id="lineOptions">
+        Line Color: <input type="color" id="lineColor" value="#ff0000">
+        Line Width: <input type="number" id="lineWidth" value="3">
+    </div>
 </div>
 
 <div id="container">
@@ -137,6 +166,10 @@ img { width: 100%; }
 let isLogin=false, currentBox=null;
 let scale=1, offsetX=0, offsetY=0;
 let historyStack=[];
+
+let lineMode=false;
+let currentLine=null;
+let startX=0, startY=0;
 
 const container=document.getElementById("container");
 
@@ -231,10 +264,12 @@ function selectBox(box){
 
 /* CLICK NGOÀI = UNSELECT */
 document.addEventListener("click",(e)=>{
-    if(e.target.closest(".box")) return;
+    if(e.target.closest(".box") || e.target.closest(".line")) return;
 
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
     currentBox=null;
+    currentLine=null;
 });
 
 /* UPDATE */
@@ -260,6 +295,7 @@ function enable(box){
 
 function rebind(){
     document.querySelectorAll(".box").forEach(enable);
+    document.querySelectorAll(".line").forEach(enableLine);
 }
 
 /* DRAG */
@@ -306,7 +342,7 @@ function enableResize(box,handle){
 let panning=false,px,py;
 document.addEventListener("mousedown",e=>{
     if(scale<=1) return;
-    if(e.target.closest(".box")) return;
+    if(e.target.closest(".box") || e.target.closest(".line")) return;
 
     panning=true;
     px=e.clientX; py=e.clientY;
@@ -346,6 +382,65 @@ document.addEventListener("wheel",e=>{
 saveBtn.onclick=()=>{
     localStorage.setItem("familyTree",container.innerHTML);
 };
+
+/* LINE TOOL */
+const lineModeCheckbox = document.getElementById("lineMode");
+const lineOptions = document.getElementById("lineOptions");
+const lineColorInput = document.getElementById("lineColor");
+const lineWidthInput = document.getElementById("lineWidth");
+
+lineModeCheckbox.onchange=()=>{
+    lineMode=lineModeCheckbox.checked;
+    lineOptions.style.display=lineMode ? "block" : "none";
+};
+
+container.addEventListener("mousedown", e=>{
+    if(!isLogin || !lineMode) return;
+    if(e.target.closest(".box")) return;
+
+    saveHistory();
+    startX=e.clientX/scale - offsetX/scale;
+    startY=e.clientY/scale - offsetY/scale;
+
+    const line=document.createElement("div");
+    line.className="line";
+    line.style.left=startX+"px";
+    line.style.top=startY+"px";
+    line.style.width="0px";
+    line.style.height="2px";
+    line.style.backgroundColor=lineColorInput.value;
+    line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
+    container.appendChild(line);
+    currentLine=line;
+});
+
+container.addEventListener("mousemove", e=>{
+    if(!currentLine) return;
+    const x2=e.clientX/scale - offsetX/scale;
+    const y2=e.clientY/scale - offsetY/scale;
+
+    const dx=x2-startX;
+    const dy=y2-startY;
+    const length=Math.sqrt(dx*dx + dy*dy);
+    const angle=Math.atan2(dy, dx) * 180/Math.PI;
+
+    currentLine.style.width=length+"px";
+    currentLine.style.transform=`rotate(${angle}deg)`;
+    currentLine.style.transformOrigin="0 0";
+});
+
+container.addEventListener("mouseup", e=>{
+    currentLine=null;
+});
+
+function enableLine(line){
+    line.onclick=e=>{
+        e.stopPropagation();
+        document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
+        line.classList.add("active");
+        currentLine=line;
+    };
+}
 </script>
 
 </body>
