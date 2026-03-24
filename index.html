@@ -4,68 +4,50 @@
 <meta charset="UTF-8">
 <title>Family Tree</title>
 <style>
-body {
-    margin: 0;
-    background: #000;
-    font-family: Arial;
-    overflow: auto;
-    cursor: grab;
-}
-body:active { cursor: grabbing; }
+body { margin:0; background:#000; font-family:Arial; overflow:auto; cursor:grab; }
+body:active { cursor:grabbing; }
 
-#container { position: absolute; transform-origin: top left; }
-img { width: 100%; }
+#container { position:absolute; transform-origin:top left; }
+img { width:100%; }
 
 /* BOX */
 .box {
-    position: absolute;
-    width: 150px;
-    height: 70px;
-    background: white;
-    border: 2px solid black;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: move;
+    position:absolute; width:150px; height:70px;
+    background:white; border:2px solid black;
+    border-radius:10px; display:flex;
+    align-items:center; justify-content:center;
+    cursor:move;
 }
-.box.active { outline: 3px dashed red; }
+.box.active { outline:3px dashed red; }
 .resize-handle {
-    position: absolute;
-    right: -8px;
-    bottom: -8px;
-    width: 18px;
-    height: 18px;
-    cursor: nwse-resize;
+    position:absolute; right:-8px; bottom:-8px;
+    width:18px; height:18px; cursor:nwse-resize;
 }
 
 /* LINE */
-.line {
-    position: absolute;
-    pointer-events: all;
-    cursor: pointer;
+.line { position:absolute; pointer-events:all; cursor:pointer; }
+.line.active { outline:2px dashed yellow; }
+.handle {
+    position:absolute; width:12px; height:12px; background:#fff; border:2px solid #000;
+    border-radius:50%; cursor:pointer; display:none; z-index:1000;
 }
-.line.active { outline: 2px dashed yellow; }
 
 /* TOOLBOX */
 #tool {
-    position: fixed;
-    top:50px; right:10px;
-    width: 250px;
-    background:white;
-    padding:10px;
-    z-index:9999;
-    border:2px solid black;
-    border-radius:5px;
+    position:fixed; top:50px; right:10px; width:250px;
+    background:white; padding:10px; z-index:9999;
+    border:2px solid black; border-radius:5px;
 }
 #tool h3 { margin:0 0 5px 0; text-align:center; }
 #tool input,#tool button,#tool label { width:100%; margin-bottom:5px; }
 
-#toggleTool { position: fixed; top:50px; right:10px; display:none; z-index:9999; }
-#loginBox { position: fixed; top:40%; left:50%; transform:translate(-50%,-50%); display:none; background:white; padding:10px; z-index:9999; }
+#toggleTool { position:fixed; top:50px; right:10px; display:none; z-index:9999; }
+#loginBox { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); display:none; background:white; padding:10px; z-index:9999; }
 
-#loginBtn,#logoutBtn { position: fixed; top:10px; right:10px; z-index:9999; }
+#loginBtn,#logoutBtn { position:fixed; top:10px; right:10px; z-index:9999; }
 #logoutBtn { display:none; }
+
+.lineCursor { cursor:url('data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjMycHgiIHdpZHRoPSIzMnB4IiB2aWV3Qm94PSIwIDAgNjQgNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBvbHlnb24gcG9pbnRzPSIyOCA0IDMyIDMyIDM2IDQiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIi8+PC9zdmc+'), auto; }
 </style>
 </head>
 <body>
@@ -104,10 +86,9 @@ img { width: 100%; }
     Text Color:
     <input id="textColor" type="color">
 
-    <label><input type="checkbox" id="lineMode"> Vẽ đường thẳng</label>
+    <button id="drawLineBtn">✏️ Vẽ Line</button>
     Line Color: <input type="color" id="lineColor" value="#ff0000">
     Line Width: <input type="number" id="lineWidth" value="3">
-    <button id="drawLineBtn">✏️ Vẽ Line</button>
 </div>
 
 <div id="container">
@@ -118,14 +99,10 @@ img { width: 100%; }
 let isLogin=false,currentBox=null,scale=1,offsetX=0,offsetY=0,historyStack=[];
 let drawLineMode=false,currentLine=null;
 let startX=0,startY=0;
-
 const container=document.getElementById("container");
 
 /* AUTO LOAD */
-window.onload=()=>{
-    const data=localStorage.getItem("familyTree");
-    if(data){ container.innerHTML=data; rebind(); }
-};
+window.onload=()=>{ const data=localStorage.getItem("familyTree"); if(data){ container.innerHTML=data; rebind(); } };
 
 /* LOGIN */
 loginBtn.onclick=()=>loginBox.style.display="block";
@@ -159,10 +136,8 @@ addBtn.onclick=()=>{
 /* SELECT BOX */
 function selectBox(box){
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-    box.classList.add("active");
-    currentBox=box;
-    text.value=box.innerText;
-    size.value=parseInt(getComputedStyle(box).fontSize);
+    box.classList.add("active"); currentBox=box;
+    text.value=box.innerText; size.value=parseInt(getComputedStyle(box).fontSize);
 }
 
 /* CLICK NGOÀI */
@@ -196,9 +171,7 @@ function rebind(){
 let dragging=null,dx,dy;
 document.addEventListener("mousemove",e=>{ if(!dragging) return; dragging.style.left=(e.clientX/scale-dx)+"px"; dragging.style.top=(e.clientY/scale-dy)+"px"; });
 document.addEventListener("mouseup",()=>dragging=null);
-function enableDrag(box){
-    box.onmousedown=e=>{ if(!isLogin) return; if(e.target.classList.contains("resize-handle")) return; saveHistory(); dragging=box; dx=e.clientX/scale-box.offsetLeft; dy=e.clientY/scale-box.offsetTop; };
-}
+function enableDrag(box){ box.onmousedown=e=>{ if(!isLogin) return; if(e.target.classList.contains("resize-handle")) return; saveHistory(); dragging=box; dx=e.clientX/scale-box.offsetLeft; dy=e.clientY/scale-box.offsetTop; }; }
 
 /* RESIZE BOX */
 let resizing=null,sx,sy,sw,sh;
@@ -208,13 +181,8 @@ function enableResize(box,handle){ handle.onmousedown=e=>{ if(!isLogin) return; 
 
 /* PAN ZOOM */
 let panning=false,px,py;
-document.addEventListener("mousedown",e=>{
-    if(scale<=1) return; if(e.target.closest(".box")||e.target.closest(".line")) return;
-    panning=true; px=e.clientX; py=e.clientY;
-});
-document.addEventListener("mousemove",e=>{
-    if(!panning) return; offsetX+=e.clientX-px; offsetY+=e.clientY-py; px=e.clientX; py=e.clientY; updateTransform();
-});
+document.addEventListener("mousedown",e=>{ if(scale<=1) return; if(e.target.closest(".box")||e.target.closest(".line")) return; panning=true; px=e.clientX; py=e.clientY; });
+document.addEventListener("mousemove",e=>{ if(!panning) return; offsetX+=e.clientX-px; offsetY+=e.clientY-py; px=e.clientX; py=e.clientY; updateTransform(); });
 document.addEventListener("mouseup",()=>panning=false);
 function updateTransform(){ container.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`; }
 document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault(); let newScale=scale+(e.deltaY<0?0.1:-0.1); if(newScale<=1){ scale=1; offsetX=0; offsetY=0; updateTransform(); return; } scale=newScale; updateTransform(); },{passive:false});
@@ -223,22 +191,18 @@ document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault()
 saveBtn.onclick=()=>{ localStorage.setItem("familyTree",container.innerHTML); alert("Đã lưu!"); };
 
 /* LINE TOOL */
-const lineModeCheckbox=document.getElementById("lineMode");
+const drawLineBtn=document.getElementById("drawLineBtn");
 const lineColorInput=document.getElementById("lineColor");
 const lineWidthInput=document.getElementById("lineWidth");
-const drawLineBtn=document.getElementById("drawLineBtn");
 
-lineModeCheckbox.onchange=()=>{ drawLineMode=false; drawLineBtn.style.background=""; };
-
-/* Vẽ line một lần */
 drawLineBtn.onclick=()=>{
     if(!isLogin) return;
     drawLineMode=true;
-    drawLineBtn.style.background="#ddd";
+    document.body.classList.add("lineCursor");
 };
 
 container.addEventListener("mousedown", e=>{
-    if(!isLogin || !drawLineMode) return;
+    if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
 
     saveHistory();
@@ -247,11 +211,8 @@ container.addEventListener("mousedown", e=>{
 
     const line=document.createElement("div");
     line.className="line";
-    line.style.left=startX+"px";
-    line.style.top=startY+"px";
-    line.style.width="0px";
-    line.style.height="2px";
-    line.style.backgroundColor=lineColorInput.value;
+    line.style.left=startX+"px"; line.style.top=startY+"px";
+    line.style.width="0px"; line.style.height="2px";
     line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
     container.appendChild(line);
     currentLine=line;
@@ -270,73 +231,52 @@ container.addEventListener("mousedown", e=>{
     function onMouseUp(e){
         document.removeEventListener("mousemove",onMouseMove);
         document.removeEventListener("mouseup",onMouseUp);
+        drawLineMode=false;
+        document.body.classList.remove("lineCursor");
         enableLine(currentLine);
         currentLine=null;
-        drawLineMode=false;
-        drawLineBtn.style.background="";
     }
 
     document.addEventListener("mousemove",onMouseMove);
     document.addEventListener("mouseup",onMouseUp);
 });
 
-/* ENABLE LINE (move + resize 2 đầu + delete) */
+/* ENABLE LINE with 2 end handles */
 function enableLine(line){
     line.onclick=e=>{
         e.stopPropagation();
         document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
-        line.classList.add("active");
-        currentLine=line;
+        line.classList.add("active"); currentLine=line;
     };
 
-    let dragging=false,dxLine,dyLine;
-    let resizingStart=false,resizingEnd=false;
+    const startHandle=document.createElement("div");
+    const endHandle=document.createElement("div");
+    startHandle.className="handle"; endHandle.className="handle";
+    container.appendChild(startHandle); container.appendChild(endHandle);
 
-    line.addEventListener("mousedown", e=>{
-        if(!isLogin) return;
-        e.stopPropagation();
+    function updateHandles(){
         const rect=line.getBoundingClientRect();
-        const offsetXClick=e.clientX-rect.left;
-        if(offsetXClick<10) resizingStart=true;
-        else if(offsetXClick>rect.width-10) resizingEnd=true;
-        else { dragging=true; dxLine=e.clientX/scale-offsetX-parseFloat(line.style.left); dyLine=e.clientY/scale-offsetY-parseFloat(line.style.top); }
-    });
+        const left=parseFloat(line.style.left);
+        const top=parseFloat(line.style.top);
+        const width=parseFloat(line.style.width);
+        const angle=parse.atan2 || 0;
+        // Tính 2 đầu
+        const transform = line.style.transform.match(/rotate\((-?\d+\.?\d*)deg\)/);
+        const deg = transform ? parseFloat(transform[1])*Math.PI/180 : 0;
+        const cos=Math.cos(deg), sin=Math.sin(deg);
+        startHandle.style.left=(left)+"px";
+        startHandle.style.top=(top)+"px";
+        endHandle.style.left=(left + width*cos)+"px";
+        endHandle.style.top=(top + width*sin)+"px";
+    }
 
-    document.addEventListener("mousemove", e=>{
-        if(dragging){
-            line.style.left=(e.clientX/scale-offsetX-dxLine)+"px";
-            line.style.top=(e.clientY/scale-offsetY-dyLine)+"px";
-        } else if(resizingStart || resizingEnd){
-            const rect=line.getBoundingClientRect();
-            const startX=line.offsetLeft;
-            const startY=line.offsetTop;
-            let length=parseFloat(line.style.width);
-            let angle = parseFloat(line.style.transform.replace(/[^-?\d.]/g,''))||0;
-            angle = angle*Math.PI/180;
-            const cosA=Math.cos(angle),sinA=Math.sin(angle);
-            const dx=e.clientX/scale - offsetX - startX;
-            const dy=e.clientY/scale - offsetY - startY;
-            const proj = dx*cosA + dy*sinA;
-            if(resizingStart){
-                line.style.left=(startX+proj*cosA)+"px";
-                line.style.top=(startY+proj*sinA)+"px";
-                line.style.width=(length-proj)+"px";
-            }
-            if(resizingEnd){
-                line.style.width=(length+proj)+"px";
-            }
-        }
+    updateHandles();
+    line.addEventListener("mousemove", updateHandles);
+    startHandle.addEventListener("mousedown", e=>{
+        e.stopPropagation(); resizingStart=true;
     });
-
-    document.addEventListener("mouseup", ()=>{
-        dragging=false; resizingStart=false; resizingEnd=false;
-    });
-
-    document.addEventListener("keydown", e=>{
-        if(e.key==="Delete" && line.classList.contains("active")){
-            saveHistory();
-            line.remove();
-        }
+    endHandle.addEventListener("mousedown", e=>{
+        e.stopPropagation(); resizingEnd=true;
     });
 }
 </script>
