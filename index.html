@@ -25,11 +25,14 @@ img { width:100%; }
 }
 
 /* LINE */
-.line { position:absolute; pointer-events:all; cursor:pointer; }
+.line { position:absolute; pointer-events:auto; }
 .line.active { outline:2px dashed yellow; }
 .handle {
     position:absolute; width:12px; height:12px; background:#fff; border:2px solid #000;
     border-radius:50%; cursor:pointer; z-index:1000;
+}
+.handle-hover {
+    cursor: ew-resize; /* hiển thị mũi tên kéo dài/thu ngắn */
 }
 
 /* TOOLBOX */
@@ -105,7 +108,7 @@ img { width:100%; }
 
 <script>
 let isLogin=false,currentBox=null,scale=1,offsetX=0,offsetY=0,historyStack=[];
-let drawLineMode=false,currentLine=null;
+let drawLineMode=false;
 
 const container=document.getElementById("container");
 
@@ -153,7 +156,7 @@ document.addEventListener("click",(e)=>{
     if(e.target.closest(".box")||e.target.closest(".line")) return;
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
     document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
-    currentBox=null; currentLine=null;
+    currentBox=null;
 });
 
 /* UPDATE BOX */
@@ -170,9 +173,7 @@ function enable(box){
     box.onclick=e=>{ e.stopPropagation(); selectBox(box); };
     enableDrag(box); enableResize(box,handle);
 }
-function rebind(){
-    document.querySelectorAll(".box").forEach(enable);
-}
+function rebind(){ document.querySelectorAll(".box").forEach(enable); }
 
 /* DRAG BOX */
 let dragging=null,dx,dy;
@@ -197,65 +198,48 @@ document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault()
 /* SAVE */
 saveBtn.onclick=()=>{ localStorage.setItem("familyTree",container.innerHTML); alert("Đã lưu!"); };
 
-/* LINE TOOL THÔNG MINH */
-const drawLineButton=document.getElementById("drawLineBtn");
-const lineColor=document.getElementById("lineColor");
-const lineWidth=document.getElementById("lineWidth");
-let activeLine=null, resizingStart=false, resizingEnd=false;
+/* LINE THÔNG MINH BẤT KỲ GÓC */
+const drawLineBtn=document.getElementById("drawLineBtn");
+const lineColorInput=document.getElementById("lineColor");
+const lineWidthInput=document.getElementById("lineWidth");
 
-drawLineButton.onclick=()=>{
-    if(!isLogin) return;
-    drawLineMode=true;
-    document.body.classList.add("lineCursor");
-};
+let activeLine=null, draggingLine=null, dragEnd=null;
+
+drawLineBtn.onclick=()=>{ if(!isLogin) return; drawLineMode=true; document.body.classList.add("lineCursor"); };
 
 container.addEventListener("mousedown", e=>{
-    if(!drawLineMode || e.target.closest(".box")) return;
+    if(!drawLineMode) return;
+    if(e.target.closest(".box")) return;
 
     saveHistory();
-    let startX=e.clientX/scale - offsetX/scale;
-    let startY=e.clientY/scale - offsetY/scale;
+
+    let x1=e.clientX/scale - offsetX/scale;
+    let y1=e.clientY/scale - offsetY/scale;
 
     const line=document.createElement("div");
     line.className="line";
-    line.style.left=startX+"px";
-    line.style.top=startY+"px";
-    line.style.width="0px";
-    line.style.height="2px";
-    line.style.borderTop=`${lineWidth.value}px solid ${lineColor.value}`;
+    line.style.left=x1+"px";
+    line.style.top=y1+"px";
+    line.dataset.x1=x1; line.dataset.y1=y1;
+    line.dataset.x2=x1; line.dataset.y2=y1;
+    line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
     container.appendChild(line);
 
-    // tạo 2 handls
-    const startHandle=document.createElement("div");
-    const endHandle=document.createElement("div");
-    startHandle.className="handle"; endHandle.className="handle";
-    container.appendChild(startHandle);
-    container.appendChild(endHandle);
-
-    function updateHandles(){
-        const left=parseFloat(line.style.left);
-        const top=parseFloat(line.style.top);
-        const width=parseFloat(line.style.width);
-        const transform = line.style.transform.match(/rotate\((-?\d+\.?\d*)deg\)/);
-        const deg = transform ? parseFloat(transform[1])*Math.PI/180 : 0;
-        startHandle.style.left=`${left}px`;
-        startHandle.style.top=`${top}px`;
-        endHandle.style.left=`${left + width*Math.cos(deg)}px`;
-        endHandle.style.top=`${top + width*Math.sin(deg)}px`;
+    function updateLinePosition(l){
+        let dx=l.dataset.x2-l.dataset.x1;
+        let dy=l.dataset.y2-l.dataset.y1;
+        let length=Math.sqrt(dx*dx+dy*dy);
+        let angle=Math.atan2(dy,dx)*180/Math.PI;
+        l.style.width=length+"px";
+        l.style.transform=`rotate(${angle}deg)`;
+        l.style.transformOrigin="0 0";
     }
-
-    updateHandles();
 
     function onMouseMove(e){
         let x2=e.clientX/scale - offsetX/scale;
         let y2=e.clientY/scale - offsetY/scale;
-        const dx=x2-startX, dy=y2-startY;
-        const length=Math.sqrt(dx*dx+dy*dy);
-        const angle=Math.atan2(dy,dx)*180/Math.PI;
-        line.style.width=length+"px";
-        line.style.transform=`rotate(${angle}deg)`;
-        line.style.transformOrigin="0 0";
-        updateHandles();
+        line.dataset.x2=x2; line.dataset.y2=y2;
+        updateLinePosition(line);
     }
 
     function onMouseUp(){
@@ -263,11 +247,65 @@ container.addEventListener("mousedown", e=>{
         document.body.classList.remove("lineCursor");
         container.removeEventListener("mousemove",onMouseMove);
         container.removeEventListener("mouseup",onMouseUp);
+        enableLine(line);
     }
 
     container.addEventListener("mousemove",onMouseMove);
     container.addEventListener("mouseup",onMouseUp);
 });
+
+function enableLine(line){
+    line.onclick=e=>{
+        e.stopPropagation();
+        document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
+        line.classList.add("active");
+        activeLine=line;
+    };
+
+    line.addEventListener("mousemove",e=>{
+        let x=parseFloat(line.dataset.x1), y=parseFloat(line.dataset.y1);
+        let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
+        let threshold=10/scale;
+
+        if(Math.hypot(e.offsetX-(x2-x),e.offsetY-(y2-y))<threshold){
+            line.style.cursor="ew-resize"; dragEnd="end";
+        } else if(Math.hypot(e.offsetX,e.offsetY)<threshold){
+            line.style.cursor="ew-resize"; dragEnd="start";
+        } else{
+            line.style.cursor="pointer"; dragEnd=null;
+        }
+    });
+
+    line.addEventListener("mousedown",e=>{
+        if(!dragEnd) return;
+        e.stopPropagation();
+        draggingLine=line;
+        document.addEventListener("mousemove",resizeLine);
+        document.addEventListener("mouseup",stopResizeLine);
+    });
+}
+
+function resizeLine(e){
+    if(!draggingLine || !dragEnd) return;
+    let x=parseFloat(draggingLine.dataset.x1), y=parseFloat(draggingLine.dataset.y1);
+    let x2=parseFloat(draggingLine.dataset.x2), y2=parseFloat(draggingLine.dataset.y2);
+    let mx=e.clientX/scale - offsetX/scale;
+    let my=e.clientY/scale - offsetY/scale;
+
+    if(dragEnd==="start"){ draggingLine.dataset.x1=mx; draggingLine.dataset.y1=my; }
+    else draggingLine.dataset.x2=mx; draggingLine.dataset.y2=my;
+
+    let dx=draggingLine.dataset.x2-draggingLine.dataset.x1;
+    let dy=draggingLine.dataset.y2-draggingLine.dataset.y1;
+    let length=Math.sqrt(dx*dx+dy*dy);
+    let angle=Math.atan2(dy,dx)*180/Math.PI;
+    draggingLine.style.width=length+"px";
+    draggingLine.style.transform=`rotate(${angle}deg)`;
+    draggingLine.style.transformOrigin="0 0";
+}
+
+function stopResizeLine(){ document.removeEventListener("mousemove",resizeLine); document.removeEventListener("mouseup",stopResizeLine); draggingLine=null; dragEnd=null; }
+
 </script>
 </body>
 </html>
