@@ -31,8 +31,8 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: default;
     user-select: none;
+    cursor: grab;
 }
 
 /* BUTTON */
@@ -46,10 +46,21 @@ img {
     cursor: pointer;
     z-index: 9999;
 }
-
 #logoutBtn { display: none; }
 
-/* TOOL PANEL */
+/* LOGIN BOX */
+#loginBox {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    display: none;
+    z-index: 9999;
+}
+
+/* TOOL */
 #tool {
     position: fixed;
     top: 50px;
@@ -73,8 +84,14 @@ img {
 <button id="loginBtn">Login</button>
 <button id="logoutBtn">Logout</button>
 
+<div id="loginBox">
+    <input id="user" placeholder="user"><br><br>
+    <input id="pass" type="password" placeholder="pass"><br><br>
+    <button id="okBtn">OK</button>
+</div>
+
 <div id="tool">
-    <button onclick="createBox()">+ Add Box</button><br><br>
+    <button id="addBtn">+ Add Box</button><br><br>
 
     Text:
     <input id="text">
@@ -83,13 +100,13 @@ img {
     <input id="size" type="number" value="16">
 
     Text Color:
-    <input id="color" type="color">
+    <input id="color" type="color" value="#000000">
 
     Background:
-    <input id="bg" type="color">
+    <input id="bg" type="color" value="#ffffff">
 
     Border Color:
-    <input id="borderColor" type="color">
+    <input id="borderColor" type="color" value="#000000">
 
     Border Width:
     <input id="borderWidth" type="number" value="2">
@@ -105,12 +122,6 @@ img {
     </select>
 </div>
 
-<div id="loginBox" style="display:none; position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px;">
-    <input id="user" placeholder="user"><br><br>
-    <input id="pass" type="password" placeholder="pass"><br><br>
-    <button onclick="login()">OK</button>
-</div>
-
 <div id="container">
     <img src="Background.jpg">
 </div>
@@ -119,90 +130,107 @@ img {
 let isLogin = false;
 let currentBox = null;
 
+/* DOM */
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const loginBox = document.getElementById("loginBox");
+const tool = document.getElementById("tool");
+const container = document.getElementById("container");
+
+const user = document.getElementById("user");
+const pass = document.getElementById("pass");
+const okBtn = document.getElementById("okBtn");
+const addBtn = document.getElementById("addBtn");
+
+/* TOOL INPUTS */
+const textInput = document.getElementById("text");
+const sizeInput = document.getElementById("size");
+const colorInput = document.getElementById("color");
+const bgInput = document.getElementById("bg");
+const borderColorInput = document.getElementById("borderColor");
+const borderWidthInput = document.getElementById("borderWidth");
+const radiusInput = document.getElementById("radius");
+const fontInput = document.getElementById("font");
+
 /* LOGIN */
-document.getElementById("loginBtn").onclick = () => {
-    document.getElementById("loginBox").style.display = "block";
+loginBtn.onclick = () => loginBox.style.display = "block";
+
+okBtn.onclick = () => {
+    if (user.value === "a" && pass.value === "1") {
+        isLogin = true;
+        loginBox.style.display = "none";
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "block";
+        tool.style.display = "block";
+    } else {
+        alert("Wrong account");
+    }
 };
 
-function login(){
-    if(user.value==="a" && pass.value==="1"){
-        isLogin = true;
-        loginBox.style.display="none";
-        loginBtn.style.display="none";
-        logoutBtn.style.display="block";
-        tool.style.display="block";
-    }else{
-        alert("wrong");
-    }
-}
-
-logoutBtn.onclick = ()=>{
-    isLogin=false;
-    loginBtn.style.display="block";
-    logoutBtn.style.display="none";
-    tool.style.display="none";
-}
+logoutBtn.onclick = () => {
+    isLogin = false;
+    loginBtn.style.display = "block";
+    logoutBtn.style.display = "none";
+    tool.style.display = "none";
+};
 
 /* CREATE BOX */
-function createBox(){
+addBtn.onclick = () => {
     const box = document.createElement("div");
-    box.className="box";
-    box.style.top="100px";
-    box.style.left="100px";
+    box.className = "box";
+    box.style.top = "100px";
+    box.style.left = "100px";
 
-    box.innerText = text.value;
+    box.innerText = textInput.value || "New";
 
     applyStyle(box);
-
     container.appendChild(box);
-
     enableDrag(box);
 
-    box.onclick = ()=>{
-        currentBox = box;
-    }
-}
+    box.onclick = () => currentBox = box;
+};
 
 /* APPLY STYLE */
 function applyStyle(box){
-    box.style.background = bg.value;
-    box.style.borderColor = borderColor.value;
-    box.style.borderWidth = borderWidth.value + "px";
-    box.style.borderStyle = "solid";
-    box.style.borderRadius = radius.value + "px";
+    box.style.background = bgInput.value;
+    box.style.border = borderWidthInput.value + "px solid " + borderColorInput.value;
+    box.style.borderRadius = radiusInput.value + "px";
 
-    box.style.color = color.value;
-    box.style.fontSize = size.value + "px";
-    box.style.fontFamily = font.value;
+    box.style.color = colorInput.value;
+    box.style.fontSize = sizeInput.value + "px";
+    box.style.fontFamily = fontInput.value;
 }
 
 /* UPDATE REALTIME */
 document.querySelectorAll("#tool input, #tool select").forEach(el=>{
     el.oninput = ()=>{
-        if(currentBox) applyStyle(currentBox), currentBox.innerText = text.value;
-    }
+        if(!currentBox) return;
+        currentBox.innerText = textInput.value;
+        applyStyle(currentBox);
+    };
 });
 
-/* DRAG */
+/* DRAG (KHÔNG LỖI) */
 function enableDrag(box){
-    let dragging=false, offsetX, offsetY;
+    let dragging = false;
+    let offsetX = 0, offsetY = 0;
 
-    box.onmousedown = (e)=>{
+    box.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
-        dragging=true;
+        dragging = true;
         offsetX = e.clientX - box.offsetLeft;
         offsetY = e.clientY - box.offsetTop;
-    };
+    });
 
-    document.onmousemove = (e)=>{
+    document.addEventListener("mousemove", (e)=>{
         if(!dragging) return;
-        box.style.left = (e.clientX - offsetX)+"px";
-        box.style.top = (e.clientY - offsetY)+"px";
-    };
+        box.style.left = (e.clientX - offsetX) + "px";
+        box.style.top = (e.clientY - offsetY) + "px";
+    });
 
-    document.onmouseup = ()=>{
-        dragging=false;
-    };
+    document.addEventListener("mouseup", ()=>{
+        dragging = false;
+    });
 }
 </script>
 
