@@ -12,9 +12,7 @@ body {
     overflow: auto;
     cursor: grab;
 }
-body:active {
-    cursor: grabbing;
-}
+body:active { cursor: grabbing; }
 
 #container {
     position: absolute;
@@ -57,9 +55,8 @@ img {
     background: none;
     opacity: 0;
 }
-.box:hover .resize-handle {
-    opacity: 1;
-}
+.box:hover .resize-handle { opacity: 1; }
+
 .resize-handle::before {
     content: "";
     position: absolute;
@@ -113,7 +110,7 @@ img {
     margin-bottom: 5px;
 }
 
-#tool input, #tool select {
+#tool input {
     width: 100%;
     margin-bottom: 5px;
 }
@@ -134,7 +131,7 @@ img {
 <div id="tool">
     <button id="addBtn">+ Add Box</button>
     <button id="saveBtn">💾 Save</button>
-    <button id="loadBtn">📂 Load</button><br>
+    <button id="loadBtn">📂 Load</button>
 
     Text:
     <input id="text">
@@ -153,7 +150,6 @@ let currentBox = null;
 let historyStack = [];
 
 let scale = 1;
-const MIN_SCALE = 1;
 let offsetX = 0;
 let offsetY = 0;
 
@@ -270,77 +266,85 @@ function rebind(){
     });
 }
 
-/* DRAG */
-function enableDrag(box){
-    let dragging = false, dx, dy;
+/* ===== FIX LAG (GLOBAL DRAG) ===== */
+let draggingBox = null;
+let dragDX = 0;
+let dragDY = 0;
 
+document.addEventListener("mousemove", (e)=>{
+    if(!draggingBox) return;
+
+    draggingBox.style.left = (e.clientX/scale - dragDX) + "px";
+    draggingBox.style.top = (e.clientY/scale - dragDY) + "px";
+});
+
+document.addEventListener("mouseup", ()=>{
+    draggingBox = null;
+});
+
+function enableDrag(box){
     box.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
         if(e.target.classList.contains("resize-handle")) return;
 
-        dragging = true;
-        dx = e.clientX/scale - box.offsetLeft;
-        dy = e.clientY/scale - box.offsetTop;
+        draggingBox = box;
+        dragDX = e.clientX/scale - box.offsetLeft;
+        dragDY = e.clientY/scale - box.offsetTop;
     });
-
-    document.addEventListener("mousemove", (e)=>{
-        if(!dragging) return;
-        box.style.left = (e.clientX/scale - dx) + "px";
-        box.style.top = (e.clientY/scale - dy) + "px";
-    });
-
-    document.addEventListener("mouseup", ()=> dragging = false);
 }
 
-/* RESIZE */
-function enableResize(box, handle){
-    let resizing = false, startX, startY, w, h;
+/* ===== FIX LAG (RESIZE) ===== */
+let resizingBox = null;
+let startX, startY, startW, startH;
 
+document.addEventListener("mousemove", (e)=>{
+    if(!resizingBox) return;
+
+    let dx = (e.clientX - startX)/scale;
+    let dy = (e.clientY - startY)/scale;
+
+    resizingBox.style.width = (startW + dx) + "px";
+    resizingBox.style.height = (startH + dy) + "px";
+});
+
+document.addEventListener("mouseup", ()=>{
+    resizingBox = null;
+});
+
+function enableResize(box, handle){
     handle.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
         e.stopPropagation();
 
-        resizing = true;
+        resizingBox = box;
         startX = e.clientX;
         startY = e.clientY;
-        w = box.offsetWidth;
-        h = box.offsetHeight;
+        startW = box.offsetWidth;
+        startH = box.offsetHeight;
     });
-
-    document.addEventListener("mousemove", (e)=>{
-        if(!resizing) return;
-
-        let dx = (e.clientX - startX)/scale;
-        let dy = (e.clientY - startY)/scale;
-
-        box.style.width = (w + dx) + "px";
-        box.style.height = (h + dy) + "px";
-    });
-
-    document.addEventListener("mouseup", ()=> resizing = false);
 }
 
 /* PAN */
 let panning = false;
-let startX, startY;
+let startPX, startPY;
 
 document.addEventListener("mousedown", (e)=>{
     if(e.button !== 0) return;
     if(e.target.closest(".box")) return;
 
     panning = true;
-    startX = e.clientX;
-    startY = e.clientY;
+    startPX = e.clientX;
+    startPY = e.clientY;
 });
 
 document.addEventListener("mousemove", (e)=>{
     if(!panning) return;
 
-    offsetX += (e.clientX - startX);
-    offsetY += (e.clientY - startY);
+    offsetX += (e.clientX - startPX);
+    offsetY += (e.clientY - startPY);
 
-    startX = e.clientX;
-    startY = e.clientY;
+    startPX = e.clientX;
+    startPY = e.clientY;
 
     updateTransform();
 });
