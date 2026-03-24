@@ -266,7 +266,7 @@ function rebind(){
     });
 }
 
-/* ===== FIX LAG (GLOBAL DRAG) ===== */
+/* DRAG */
 let draggingBox = null;
 let dragDX = 0;
 let dragDY = 0;
@@ -293,7 +293,7 @@ function enableDrag(box){
     });
 }
 
-/* ===== FIX LAG (RESIZE) ===== */
+/* RESIZE */
 let resizingBox = null;
 let startX, startY, startW, startH;
 
@@ -356,6 +356,34 @@ function updateTransform(){
     container.style.transform =
         `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
+
+/* ===== ZOOM CHUẨN (KHÔNG NHỎ HƠN 1 + THEO CHUỘT) ===== */
+document.addEventListener("wheel", (e)=>{
+    e.preventDefault();
+
+    const zoomSpeed = 0.1;
+    const rect = container.getBoundingClientRect();
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let newScale = scale;
+
+    if(e.deltaY < 0){
+        newScale += zoomSpeed;
+    } else {
+        newScale -= zoomSpeed;
+    }
+
+    if(newScale < 1) newScale = 1;
+
+    offsetX -= (mouseX / scale) * (newScale - scale);
+    offsetY -= (mouseY / scale) * (newScale - scale);
+
+    scale = newScale;
+
+    updateTransform();
+}, { passive: false });
 </script>
 
 </body>
