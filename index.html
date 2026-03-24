@@ -32,7 +32,9 @@ img {
     align-items: center;
     justify-content: center;
     user-select: none;
-    cursor: grab;
+    cursor: move;
+    resize: both;         /* 🔥 cho phép kéo giãn */
+    overflow: hidden;
 }
 
 /* BUTTON */
@@ -69,7 +71,7 @@ img {
     padding: 10px;
     display: none;
     z-index: 9999;
-    width: 200px;
+    width: 220px;
 }
 
 #tool input, #tool select {
@@ -96,30 +98,30 @@ img {
     Text:
     <input id="text">
 
-    Font Size:
-    <input id="size" type="number" value="16">
-
-    Text Color:
-    <input id="color" type="color" value="#000000">
-
-    Background:
-    <input id="bg" type="color" value="#ffffff">
-
-    Border Color:
-    <input id="borderColor" type="color" value="#000000">
-
-    Border Width:
-    <input id="borderWidth" type="number" value="2">
-
-    Radius:
-    <input id="radius" type="number" value="10">
-
     Font:
     <select id="font">
         <option>Arial</option>
         <option>Times New Roman</option>
         <option>Courier New</option>
     </select>
+
+    Font Size:
+    <input id="size" type="number" value="16">
+
+    Text Color:
+    <input id="textColor" type="color"><br>
+    <button id="applyText">OK Text</button><br><br>
+
+    Background:
+    <input id="bgColor" type="color"><br>
+    <button id="applyBg">OK Background</button><br><br>
+
+    Border Color:
+    <input id="borderColor" type="color">
+
+    Border Width:
+    <input id="borderWidth" type="number" value="2"><br>
+    <button id="applyBorder">OK Border</button>
 </div>
 
 <div id="container">
@@ -135,24 +137,7 @@ const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const loginBox = document.getElementById("loginBox");
 const tool = document.getElementById("tool");
-const container = document.getElementById("container");
 
-const user = document.getElementById("user");
-const pass = document.getElementById("pass");
-const okBtn = document.getElementById("okBtn");
-const addBtn = document.getElementById("addBtn");
-
-/* TOOL INPUTS */
-const textInput = document.getElementById("text");
-const sizeInput = document.getElementById("size");
-const colorInput = document.getElementById("color");
-const bgInput = document.getElementById("bg");
-const borderColorInput = document.getElementById("borderColor");
-const borderWidthInput = document.getElementById("borderWidth");
-const radiusInput = document.getElementById("radius");
-const fontInput = document.getElementById("font");
-
-/* LOGIN */
 loginBtn.onclick = () => loginBox.style.display = "block";
 
 okBtn.onclick = () => {
@@ -162,9 +147,7 @@ okBtn.onclick = () => {
         loginBtn.style.display = "none";
         logoutBtn.style.display = "block";
         tool.style.display = "block";
-    } else {
-        alert("Wrong account");
-    }
+    } else alert("Wrong");
 };
 
 logoutBtn.onclick = () => {
@@ -178,42 +161,41 @@ logoutBtn.onclick = () => {
 addBtn.onclick = () => {
     const box = document.createElement("div");
     box.className = "box";
+    box.innerText = "New";
     box.style.top = "100px";
     box.style.left = "100px";
 
-    box.innerText = textInput.value || "New";
-
-    applyStyle(box);
     container.appendChild(box);
     enableDrag(box);
 
     box.onclick = () => currentBox = box;
 };
 
-/* APPLY STYLE */
-function applyStyle(box){
-    box.style.background = bgInput.value;
-    box.style.border = borderWidthInput.value + "px solid " + borderColorInput.value;
-    box.style.borderRadius = radiusInput.value + "px";
+/* APPLY TEXT */
+applyText.onclick = () => {
+    if (!currentBox) return;
+    currentBox.innerText = text.value;
+    currentBox.style.color = textColor.value;
+    currentBox.style.fontSize = size.value + "px";
+    currentBox.style.fontFamily = font.value;
+};
 
-    box.style.color = colorInput.value;
-    box.style.fontSize = sizeInput.value + "px";
-    box.style.fontFamily = fontInput.value;
-}
+/* APPLY BACKGROUND */
+applyBg.onclick = () => {
+    if (!currentBox) return;
+    currentBox.style.background = bgColor.value;
+};
 
-/* UPDATE REALTIME */
-document.querySelectorAll("#tool input, #tool select").forEach(el=>{
-    el.oninput = ()=>{
-        if(!currentBox) return;
-        currentBox.innerText = textInput.value;
-        applyStyle(currentBox);
-    };
-});
+/* APPLY BORDER */
+applyBorder.onclick = () => {
+    if (!currentBox) return;
+    currentBox.style.border = borderWidth.value + "px solid " + borderColor.value;
+};
 
-/* DRAG (KHÔNG LỖI) */
+/* DRAG */
 function enableDrag(box){
     let dragging = false;
-    let offsetX = 0, offsetY = 0;
+    let offsetX, offsetY;
 
     box.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
