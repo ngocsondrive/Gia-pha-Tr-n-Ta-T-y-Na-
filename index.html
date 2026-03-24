@@ -9,11 +9,12 @@ body {
     margin: 0;
     background: #000;
     font-family: Arial;
+    overflow: hidden; /* 🔥 để kéo trang */
 }
 
 #container {
-    position: relative;
-    transform-origin: top left; /* 🔥 giữ đúng vị trí khi zoom */
+    position: absolute;
+    transform-origin: top left;
 }
 
 img {
@@ -34,16 +35,16 @@ img {
     justify-content: center;
     user-select: none;
     cursor: move;
-    overflow: hidden;
+    overflow: visible; /* 🔥 để handle không bị mất */
 }
 
-/* RESIZE HANDLE (góc phải dưới) */
+/* HANDLE luôn ở góc */
 .resize-handle {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    right: 0;
-    bottom: 0;
+    width: 12px;
+    height: 12px;
+    right: -6px;
+    bottom: -6px;
     background: black;
     cursor: se-resize;
 }
@@ -140,6 +141,8 @@ img {
 let isLogin = false;
 let currentBox = null;
 let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
 
 const container = document.getElementById("container");
 
@@ -192,31 +195,31 @@ bgColor.oninput = () => currentBox && (currentBox.style.background = bgColor.val
 borderColor.oninput = () => currentBox && (currentBox.style.border = borderWidth.value + "px solid " + borderColor.value);
 borderWidth.oninput = () => currentBox && (currentBox.style.border = borderWidth.value + "px solid " + borderColor.value);
 
-/* DRAG */
+/* DRAG BOX */
 function enableDrag(box){
-    let dragging = false, offsetX, offsetY;
+    let dragging = false, dx, dy;
 
     box.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
         if(e.target.classList.contains("resize-handle")) return;
 
         dragging = true;
-        offsetX = (e.clientX/scale) - box.offsetLeft;
-        offsetY = (e.clientY/scale) - box.offsetTop;
+        dx = e.clientX/scale - box.offsetLeft;
+        dy = e.clientY/scale - box.offsetTop;
     });
 
     document.addEventListener("mousemove", (e)=>{
         if(!dragging) return;
-        box.style.left = (e.clientX/scale - offsetX) + "px";
-        box.style.top = (e.clientY/scale - offsetY) + "px";
+        box.style.left = (e.clientX/scale - dx) + "px";
+        box.style.top = (e.clientY/scale - dy) + "px";
     });
 
     document.addEventListener("mouseup", ()=> dragging = false);
 }
 
-/* RESIZE (GIỮ GÓC TRÁI) */
+/* RESIZE FIX */
 function enableResize(box, handle){
-    let resizing = false, startX, startY, startW, startH;
+    let resizing = false, startX, startY, w, h;
 
     handle.addEventListener("mousedown", (e)=>{
         if(!isLogin) return;
@@ -225,8 +228,8 @@ function enableResize(box, handle){
         resizing = true;
         startX = e.clientX;
         startY = e.clientY;
-        startW = box.offsetWidth;
-        startH = box.offsetHeight;
+        w = box.offsetWidth;
+        h = box.offsetHeight;
     });
 
     document.addEventListener("mousemove", (e)=>{
@@ -235,14 +238,19 @@ function enableResize(box, handle){
         let dx = (e.clientX - startX)/scale;
         let dy = (e.clientY - startY)/scale;
 
-        box.style.width = (startW + dx) + "px";
-        box.style.height = (startH + dy) + "px";
+        box.style.width = (w + dx) + "px";
+        box.style.height = (h + dy) + "px";
     });
 
     document.addEventListener("mouseup", ()=> resizing = false);
 }
 
-/* ZOOM CTRL + SCROLL */
+/* ZOOM */
+function updateTransform(){
+    container.style.transform =
+        "translate(" + offsetX + "px," + offsetY + "px) scale(" + scale + ")";
+}
+
 window.addEventListener("wheel", (e)=>{
     if(e.ctrlKey){
         e.preventDefault();
@@ -251,10 +259,28 @@ window.addEventListener("wheel", (e)=>{
         else scale -= 0.1;
 
         scale = Math.max(0.5, Math.min(scale, 3));
-
-        container.style.transform = "scale(" + scale + ")";
+        updateTransform();
     }
 }, { passive:false });
+
+/* PAN (kéo nền) */
+let panning = false, startX, startY;
+
+document.addEventListener("mousedown", (e)=>{
+    if(e.target.classList.contains("box")) return;
+    panning = true;
+    startX = e.clientX - offsetX;
+    startY = e.clientY - offsetY;
+});
+
+document.addEventListener("mousemove", (e)=>{
+    if(!panning) return;
+    offsetX = e.clientX - startX;
+    offsetY = e.clientY - startY;
+    updateTransform();
+});
+
+document.addEventListener("mouseup", ()=> panning = false);
 </script>
 
 </body>
