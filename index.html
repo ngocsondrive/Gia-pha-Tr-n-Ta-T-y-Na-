@@ -22,24 +22,20 @@ img { width:100%; }
     align-items:center;
     justify-content:center;
     cursor:move;
-    user-select:none;
 }
 .box.active { outline:3px dashed red; }
-
-.box span {
-    pointer-events:none;
-}
 
 .resize-handle {
     position:absolute;
     right:-8px; bottom:-8px;
     width:18px; height:18px;
-    background:red;
     cursor:nwse-resize;
 }
 
-/* LINE */
-.line { position:absolute; pointer-events:auto; }
+/* TEXT riêng */
+.box-text {
+    pointer-events:none;
+}
 
 /* TOOL */
 #tool {
@@ -50,17 +46,17 @@ img { width:100%; }
 }
 #tool input,#tool button { width:100%; margin-bottom:5px; }
 
-#loginBtn,#logoutBtn {
-    position:fixed; top:10px; right:10px; z-index:9999;
-}
-#logoutBtn { display:none; }
-
 #loginBox {
     position:fixed; top:40%; left:50%;
     transform:translate(-50%,-50%);
     display:none; background:white; padding:10px;
     z-index:9999;
 }
+
+#loginBtn,#logoutBtn {
+    position:fixed; top:10px; right:10px; z-index:9999;
+}
+#logoutBtn { display:none; }
 </style>
 </head>
 
@@ -78,9 +74,18 @@ img { width:100%; }
 <div id="tool">
 <h3>Tool Box</h3>
 <button id="addBtn">+ Add Box</button>
+<button id="saveBtn">💾 Save</button>
 
 Text:<input id="text">
 Font Size:<input id="size" type="number" value="16">
+Border Size:<input id="borderSize" type="number" value="2">
+Border Color:<input id="borderColor" type="color">
+Background:<input id="bgColor" type="color">
+Text Color:<input id="textColor" type="color">
+
+<button id="drawLineBtn">✏️ Vẽ Line</button>
+Line Color: <input type="color" id="lineColor" value="#ff0000">
+Line Width: <input type="number" id="lineWidth" value="3">
 </div>
 
 <div id="container">
@@ -88,27 +93,8 @@ Font Size:<input id="size" type="number" value="16">
 </div>
 
 <script>
-let isLogin=false,currentBox=null,scale=1;
+let isLogin=false,currentBox=null;
 const container=document.getElementById("container");
-
-/* LOAD */
-window.onload=()=>{
-    const data=localStorage.getItem("familyTree");
-    if(data){
-        container.innerHTML=data;
-        rebind();
-    }
-};
-
-/* SAVE */
-function save(){
-    localStorage.setItem("familyTree",container.innerHTML);
-}
-
-/* REBIND */
-function rebind(){
-    document.querySelectorAll(".box").forEach(enable);
-}
 
 /* LOGIN */
 loginBtn.onclick=()=>loginBox.style.display="block";
@@ -139,18 +125,18 @@ addBtn.onclick=()=>{
     box.style.top="100px";
     box.style.left="100px";
 
-    const textSpan=document.createElement("span");
-    textSpan.innerText="New";
+    const textDiv=document.createElement("div");
+    textDiv.className="box-text";
+    textDiv.innerText="New";
 
     const handle=document.createElement("div");
     handle.className="resize-handle";
 
-    box.appendChild(textSpan);
+    box.appendChild(textDiv);
     box.appendChild(handle);
-    container.appendChild(box);
 
+    container.appendChild(box);
     enable(box);
-    save();
 };
 
 /* SELECT */
@@ -159,21 +145,20 @@ function selectBox(box){
     box.classList.add("active");
     currentBox=box;
 
-    text.value=box.querySelector("span").innerText;
+    text.value=box.querySelector(".box-text").innerText;
 }
+
+/* CLICK OUT */
+document.addEventListener("click",(e)=>{
+    if(e.target.closest(".box")) return;
+    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+    currentBox=null;
+});
 
 /* UPDATE TEXT */
 text.oninput=()=>{
     if(currentBox){
-        currentBox.querySelector("span").innerText=text.value;
-        save();
-    }
-};
-
-size.oninput=()=>{
-    if(currentBox){
-        currentBox.style.fontSize=size.value+"px";
-        save();
+        currentBox.querySelector(".box-text").innerText=text.value;
     }
 };
 
@@ -182,7 +167,6 @@ document.addEventListener("keydown",e=>{
     if(e.key==="Delete" && currentBox){
         currentBox.remove();
         currentBox=null;
-        save();
     }
 });
 
@@ -191,17 +175,12 @@ let dragging=null,dx,dy;
 
 document.addEventListener("mousemove",e=>{
     if(!dragging) return;
-
-    dragging.style.left=(e.clientX/scale-dx)+"px";
-    dragging.style.top=(e.clientY/scale-dy)+"px";
+    dragging.style.left=(e.clientX-dx)+"px";
+    dragging.style.top=(e.clientY-dy)+"px";
 });
 
-document.addEventListener("mouseup",()=>{
-    if(dragging) save();
-    dragging=null;
-});
+document.addEventListener("mouseup",()=>dragging=null);
 
-/* ENABLE BOX */
 function enable(box){
     const handle=box.querySelector(".resize-handle");
 
@@ -215,12 +194,11 @@ function enable(box){
         if(e.target.classList.contains("resize-handle")) return;
 
         dragging=box;
-        dx=e.clientX/scale-box.offsetLeft;
-        dy=e.clientY/scale-box.offsetTop;
+        dx=e.clientX-box.offsetLeft;
+        dy=e.clientY-box.offsetTop;
     };
 
     handle.onmousedown=e=>{
-        if(!isLogin) return;
         e.stopPropagation();
 
         let sx=e.clientX, sy=e.clientY;
@@ -230,34 +208,14 @@ function enable(box){
             box.style.width=(sw+(ev.clientX-sx))+"px";
             box.style.height=(sh+(ev.clientY-sy))+"px";
         }
-
         function up(){
             document.removeEventListener("mousemove",move);
             document.removeEventListener("mouseup",up);
-            save();
         }
-
         document.addEventListener("mousemove",move);
         document.addEventListener("mouseup",up);
     };
 }
-
-/* CLICK OUT */
-document.addEventListener("click",()=>{
-    document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-    currentBox=null;
-});
-
-/* ZOOM */
-document.addEventListener("wheel",e=>{
-    if(!e.ctrlKey) return;
-    e.preventDefault();
-
-    scale+=e.deltaY<0?0.1:-0.1;
-    if(scale<1) scale=1;
-
-    container.style.transform=`scale(${scale})`;
-},{passive:false});
 </script>
 
 </body>
