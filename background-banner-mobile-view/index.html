@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tran Ta Tay Na Mobile View</title>
+  <style>
+    :root {
+      --accent: #8b531f;
+      --accent-dark: #6b3d16;
+      --panel: rgba(255, 248, 237, 0.94);
+      --line: rgba(112, 69, 31, 0.18);
+      --shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
+      --banner-width: clamp(58px, 13vw, 96px);
+      --banner-side: 2px;
+      --banner-top: 10px;
+      --viewer-side-gap: clamp(42px, 12vw, 88px);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+      touch-action: none;
+    }
+    .viewer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #f7e9c8 0%, #f1ddaf 100%);
+    }
+    .canvas {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform-origin: top center;
+      will-change: transform;
+    }
+    .background {
+      display: block;
+      width: min(100vw, 1180px);
+      max-width: calc(100vw - (var(--viewer-side-gap) * 2));
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .lines-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .line-path {
+      fill: none;
+      stroke-linecap: square;
+      stroke-linejoin: round;
+    }
+    .box {
+      position: absolute;
+      min-width: 24px;
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6px;
+      overflow: hidden;
+      box-shadow: 0 10px 18px rgba(54, 28, 9, 0.12);
+    }
+    .box-content {
+      width: 100%;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.2;
+    }
+    .box.vertical-text .box-content {
+      width: auto;
+      height: 100%;
+      white-space: normal;
+      word-break: keep-all;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      line-height: 1;
+      letter-spacing: 0.08em;
+    }
+    .banner {
+      position: fixed;
+      top: var(--banner-top);
+      z-index: 20;
+      width: var(--banner-width);
+      pointer-events: none;
+      filter: drop-shadow(0 8px 14px rgba(73, 35, 12, 0.15));
+    }
+    .banner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .banner-left {
+      left: var(--banner-side);
+      clip-path: inset(0 12% 0 13%);
+    }
+    .banner-right {
+      right: var(--banner-side);
+      clip-path: inset(0 13% 0 12%);
+    }
+    .viewer-bar {
+      position: fixed;
+      left: 50%;
+      bottom: 12px;
+      z-index: 30;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+    .viewer-btn,
+    .viewer-zoom {
+      border: 1px solid var(--line);
+      background: #fffaf0;
+      color: var(--accent-dark);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      height: 34px;
+    }
+    .viewer-btn {
+      min-width: 34px;
+      padding: 0 12px;
+    }
+    .viewer-zoom {
+      min-width: 62px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+    }
+    .hint {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      max-width: min(86vw, 420px);
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: rgba(255, 248, 237, 0.9);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+    }
+    @media (min-width: 901px) {
+      .background {
+        width: min(78vw, 1180px);
+        max-width: min(78vw, 1180px);
+      }
+      .hint {
+        max-width: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="viewer" id="viewer">
+    <div class="banner banner-left"><img src="../1a.png" alt="Câu đối trái"></div>
+    <div class="banner banner-right"><img src="../1b.png" alt="Câu đối phải"></div>
+    <div class="hint">Bản xem trên điện thoại. Kéo để di chuyển, chụm 2 ngón hoặc dùng nút để phóng to.</div>
+    <div class="canvas" id="canvas">
+      <img id="background" class="background" src="../12%20(2).png" alt="Background 12 (2)">
+      <div id="overlay" class="overlay">
+        <svg id="linesSvg" class="lines-svg"></svg>
+      </div>
+    </div>
+    <div class="viewer-bar">
+      <button id="zoomOutBtn" class="viewer-btn" type="button">-</button>
+      <button id="zoomResetBtn" class="viewer-zoom" type="button">100%</button>
+      <button id="zoomInBtn" class="viewer-btn" type="button">+</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'background-banner-editor-3-data';
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const BOX_GAP = 10;
+
+    const viewer = document.getElementById('viewer');
+    const canvas = document.getElementById('canvas');
+    const background = document.getElementById('background');
+    const overlay = document.getElementById('overlay');
+    const linesSvg = document.getElementById('linesSvg');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    let boxes = [];
+    let lines = [];
+    let scale = 1;
+    let minScale = 1;
+    let maxScale = 4;
+    let panX = 0;
+    let panY = 0;
+    let touchState = null;
+
+    function shouldUseVerticalText(box) {
+      const fontSize = box.fontSize || 20;
+      return box.width <= fontSize + 18;
+    }
+
+    function loadData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        boxes = Array.isArray(saved.boxes) ? saved.boxes : [];
+        lines = Array.isArray(saved.lines) ? saved.lines : [];
+      } catch {
+        boxes = [];
+        lines = [];
+      }
+      lines = lines.map((line) => {
+        const next = { ...line };
+        if (next.start && next.start.kind === 'line' && (next.start.segmentIndex !== undefined || next.start.t !== undefined)) {
+          const fallback = next.start;
+          next.start = { kind: 'line', lineId: fallback.lineId, hintX: fallback.x || 0, hintY: fallback.y || 0 };
+        }
+        if (next.end && next.end.kind === 'line' && (next.end.segmentIndex !== undefined || next.end.t !== undefined)) {
+          const fallback = next.end;
+          next.end = { kind: 'line', lineId: fallback.lineId, hintX: fallback.x || 0, hintY: fallback.y || 0 };
+        }
+        if (next.end && next.end.kind === 'box') {
+          next.end = { kind: 'box', boxId: next.end.boxId, side: 'top' };
+        }
+        return next;
+      });
+    }
+
+    function setCanvasSize() {
+      const width = background.clientWidth;
+      const height = background.clientHeight;
+      overlay.style.width = width + 'px';
+      overlay.style.height = height + 'px';
+      linesSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      canvas.style.left = '50%';
+    }
+
+    function applyTransform() {
+      canvas.style.transform = `translate(${panX}px, ${panY}px) translateX(-50%) scale(${scale})`;
+      zoomResetBtn.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function clampPan() {
+      const rect = canvas.getBoundingClientRect();
+      const viewerRect = viewer.getBoundingClientRect();
+      const scaledWidth = rect.width;
+      const scaledHeight = rect.height;
+      const maxX = Math.max(0, (scaledWidth - viewerRect.width) / 2 + 24);
+      const minY = Math.min(24, viewerRect.height - scaledHeight - 72);
+      const maxY = 36;
+      panX = Math.max(-maxX, Math.min(maxX, panX));
+      panY = Math.max(minY, Math.min(maxY, panY));
+      if (scale === minScale) {
+        panX = 0;
+        panY = 0;
+      }
+    }
+
+    function resetView() {
+      scale = minScale;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
+    function zoomAt(nextScale, centerX, centerY) {
+      const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
+      if (boundedScale === scale) return;
+      const rect = canvas.getBoundingClientRect();
+      const localX = centerX - rect.left;
+      const localY = centerY - rect.top;
+      const ratio = boundedScale / scale;
+      panX += localX - localX * ratio;
+      panY += localY - localY * ratio;
+      scale = boundedScale;
+      applyTransform();
+      clampPan();
+      applyTransform();
+    }
+
+    function offsetPoint(point, side, offset = BOX_GAP) {
+      if (side === 'top') return { x: point.x, y: point.y - offset, side };
+      if (side === 'bottom') return { x: point.x, y: point.y + offset, side };
+      if (side === 'left') return { x: point.x - offset, y: point.y, side };
+      return { x: point.x + offset, y: point.y, side: 'right' };
+    }
+
+    function getBoxAnchor(box, side, offset = BOX_GAP) {
+      if (side === 'top') return offsetPoint({ x: box.x + box.width / 2, y: box.y, side }, side, offset);
+      if (side === 'bottom') return offsetPoint({ x: box.x + box.width / 2, y: box.y + box.height, side }, side, offset);
+      if (side === 'left') return offsetPoint({ x: box.x, y: box.y + box.height / 2, side }, side, offset);
+      return offsetPoint({ x: box.x + box.width, y: box.y + box.height / 2, side: 'right' }, 'right', offset);
+    }
+
+    function uniquePoints(points) {
+      return points.filter((point, index, arr) => index === 0 || point.x !== arr[index - 1].x || point.y !== arr[index - 1].y);
+    }
+
+    function makeOrthogonalPath(start, end) {
+      if (Math.abs(start.x - end.x) < 1 || Math.abs(start.y - end.y) < 1) return [start, end];
+      const preferHorizontal = start.side === 'left' || start.side === 'right';
+      if (preferHorizontal) {
+        const midX = (start.x + end.x) / 2;
+        return uniquePoints([start, { x: midX, y: start.y }, { x: midX, y: end.y }, end]);
+      }
+      const midY = (start.y + end.y) / 2;
+      return uniquePoints([start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]);
+    }
+
+    function pointsToPath(points) {
+      return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+    }
+
+    function nearestPointOnSegment(point, a, b) {
+      if (a.x === b.x) {
+        const minY = Math.min(a.y, b.y);
+        const maxY = Math.max(a.y, b.y);
+        return { x: a.x, y: Math.min(maxY, Math.max(minY, point.y)), side: 'left' };
+      }
+      const minX = Math.min(a.x, b.x);
+      const maxX = Math.max(a.x, b.x);
+      return { x: Math.min(maxX, Math.max(minX, point.x)), y: a.y, side: 'top' };
+    }
+
+    function nearestPointOnPolyline(point, points) {
+      let best = null;
+      points.forEach((current, index) => {
+        if (index === points.length - 1) return;
+        const next = points[index + 1];
+        const snapped = nearestPointOnSegment(point, current, next);
+        const distance = Math.hypot(point.x - snapped.x, point.y - snapped.y);
+        if (!best || distance < best.distance) best = { ...snapped, distance };
+      });
+      return best;
+    }
+
+    function resolveTarget(target, referencePoint, visited) {
+      if (!target) return null;
+      if (target.kind === 'point') return { x: target.x, y: target.y, side: target.side || 'right' };
+      if (target.kind === 'box') {
+        const box = boxes.find((item) => item.id === target.boxId);
+        if (!box) return null;
+        return getBoxAnchor(box, target.side || 'top');
+      }
+      if (target.kind === 'line') {
+        const geometry = getLineGeometry(target.lineId, visited);
+        if (!geometry) return null;
+        const ref = referencePoint || { x: target.hintX || 0, y: target.hintY || 0 };
+        const snapped = nearestPointOnPolyline(ref, geometry.points);
+        if (!snapped) return null;
+        return { x: snapped.x, y: snapped.y, side: snapped.side || 'left' };
+      }
+      return null;
+    }
+
+    function getLineGeometry(lineId, visited = new Set()) {
+      if (visited.has(lineId)) return null;
+      const nextVisited = new Set(visited);
+      nextVisited.add(lineId);
+      const line = lines.find((item) => item.id === lineId);
+      if (!line) return null;
+      let start = resolveTarget(line.start, null, nextVisited);
+      let end = resolveTarget(line.end, start, nextVisited);
+      if (line.start && line.start.kind === 'line') start = resolveTarget(line.start, end, nextVisited);
+      if (line.end && line.end.kind === 'line') end = resolveTarget(line.end, start, nextVisited);
+      if (!start || !end) return null;
+      return { points: makeOrthogonalPath(start, end), line };
+    }
+
+    function renderBoxes() {
+      overlay.querySelectorAll('.box').forEach((el) => el.remove());
+      boxes.forEach((box) => {
+        const el = document.createElement('div');
+        el.className = `box${shouldUseVerticalText(box) ? ' vertical-text' : ''}`;
+        el.style.left = box.x + 'px';
+        el.style.top = box.y + 'px';
+        el.style.width = box.width + 'px';
+        el.style.height = box.height + 'px';
+        el.style.background = box.background;
+        el.style.border = `${box.borderWidth}px solid ${box.borderColor}`;
+        el.style.color = box.textColor;
+        el.style.fontSize = `${box.fontSize || 20}px`;
+
+        const content = document.createElement('div');
+        content.className = 'box-content';
+        content.textContent = box.text;
+        el.appendChild(content);
+        overlay.appendChild(el);
+      });
+    }
+
+    function renderLines() {
+      linesSvg.innerHTML = '';
+      lines.forEach((line) => {
+        const geometry = getLineGeometry(line.id);
+        if (!geometry) return;
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('d', pointsToPath(geometry.points));
+        path.setAttribute('class', 'line-path');
+        path.setAttribute('stroke', line.color || '#8b531f');
+        path.setAttribute('stroke-width', String(line.width || 3));
+        linesSvg.appendChild(path);
+      });
+    }
+
+    function renderScene() {
+      setCanvasSize();
+      renderLines();
+      renderBoxes();
+      clampPan();
+      applyTransform();
+    }
+
+    function getTouchDistance(touchA, touchB) {
+      return Math.hypot(touchA.clientX - touchB.clientX, touchA.clientY - touchB.clientY);
+    }
+
+    function getTouchCenter(touchA, touchB) {
+      return {
+        x: (touchA.clientX + touchB.clientX) / 2,
+        y: (touchA.clientY + touchB.clientY) / 2,
+      };
+    }
+
+    viewer.addEventListener('touchstart', (event) => {
+      if (event.touches.length === 1) {
+        touchState = {
+          type: 'pan',
+          startX: event.touches[0].clientX,
+          startY: event.touches[0].clientY,
+          basePanX: panX,
+          basePanY: panY,
+        };
+      } else if (event.touches.length === 2) {
+        const center = getTouchCenter(event.touches[0], event.touches[1]);
+        touchState = {
+          type: 'pinch',
+          baseScale: scale,
+          distance: getTouchDistance(event.touches[0], event.touches[1]),
+          centerX: center.x,
+          centerY: center.y,
+          basePanX: panX,
+          basePanY: panY,
+        };
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchmove', (event) => {
+      if (!touchState) return;
+      event.preventDefault();
+      if (touchState.type === 'pan' && event.touches.length === 1) {
+        panX = touchState.basePanX + (event.touches[0].clientX - touchState.startX);
+        panY = touchState.basePanY + (event.touches[0].clientY - touchState.startY);
+        clampPan();
+        applyTransform();
+      } else if (touchState.type === 'pinch' && event.touches.length === 2) {
+        panX = touchState.basePanX;
+        panY = touchState.basePanY;
+        scale = touchState.baseScale;
+        const center = getTouchCenter(event.touches[0], event.touches[1]);
+        const nextScale = touchState.baseScale * (getTouchDistance(event.touches[0], event.touches[1]) / touchState.distance);
+        zoomAt(nextScale, center.x, center.y);
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('touchend', () => {
+      touchState = null;
+    });
+
+    zoomInBtn.addEventListener('click', () => zoomAt(scale * 1.2, window.innerWidth / 2, window.innerHeight / 2));
+    zoomOutBtn.addEventListener('click', () => zoomAt(scale / 1.2, window.innerWidth / 2, window.innerHeight / 2));
+    zoomResetBtn.addEventListener('click', resetView);
+
+    background.addEventListener('load', () => {
+      loadData();
+      setCanvasSize();
+      renderScene();
+      resetView();
+    });
+
+    window.addEventListener('resize', () => {
+      setCanvasSize();
+      renderScene();
+    });
+
+    if (background.complete) {
+      loadData();
+      setCanvasSize();
+      renderScene();
+      resetView();
+    }
+  </script>
+</body>
+</html>
