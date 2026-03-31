@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>Family Tree</title>
+
+<script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
+
 <style>
 body { margin:0; background:#000; font-family:Arial; overflow:auto; cursor:grab; }
 body:active { cursor:grabbing; }
@@ -10,7 +13,6 @@ body:active { cursor:grabbing; }
 #container { position:absolute; transform-origin:top left; }
 img { width:100%; }
 
-/* BOX */
 .box {
     position:absolute; width:150px; height:70px;
     background:white; border:2px solid black;
@@ -19,41 +21,28 @@ img { width:100%; }
     cursor:move;
 }
 .box.active { outline:3px dashed red; }
+
 .resize-handle {
     position:absolute; right:-8px; bottom:-8px;
     width:18px; height:18px; cursor:nwse-resize;
 }
 
-/* LINE */
-.line { position:absolute; pointer-events:auto; }
-.line.active { outline:2px dashed yellow; }
-
-/* TOOLBOX */
 #tool {
     position:fixed; top:10px; right:10px; width:250px;
     background:white; padding:10px; z-index:9999;
     border:2px solid black; border-radius:5px;
     display:none;
 }
-#tool h3 { margin:0 0 5px 0; text-align:center; }
-#tool input,#tool button,#tool label { width:100%; margin-bottom:5px; }
 
-#toggleTool {
-    position:fixed; top:10px; right:10px;
-    display:none; z-index:9999;
-}
-
-#loginBox { 
-    position:fixed; top:40%; left:50%; transform:translate(-50%,-50%);
-    display:none; background:white; padding:10px; z-index:9999; 
-}
-
+#toggleTool { position:fixed; top:10px; right:10px; display:none; z-index:9999; }
+#loginBox { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); display:none; background:white; padding:10px; z-index:9999; }
 #loginBtn,#logoutBtn { position:fixed; top:10px; right:10px; z-index:9999; }
 #logoutBtn { display:none; }
 
-.lineCursor { cursor:url('data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjMycHgiIHdpZHRoPSIzMnB4IiB2aWV3Qm94PSIwIDAgNjQgNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBvbHlnb24gcG9pbnRzPSIyOCA0IDMyIDMyIDM2IDQiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIi8+PC9zdmc+'), auto; }
+.lineCursor { cursor:crosshair; }
 </style>
 </head>
+
 <body>
 
 <button id="loginBtn">Login</button>
@@ -61,144 +50,156 @@ img { width:100%; }
 <button id="toggleTool">☰</button>
 
 <div id="loginBox">
-    <input id="user" placeholder="Username"><br><br>
-    <input id="pass" type="password" placeholder="Password"><br><br>
-    <button id="okBtn">OK</button>
+<input id="user" placeholder="Username"><br><br>
+<input id="pass" type="password" placeholder="Password"><br><br>
+<button id="okBtn">OK</button>
 </div>
 
 <div id="tool">
-    <h3>Tool Box</h3>
-    <button id="collapseBtn">− Thu nhỏ</button>
-    <button id="addBtn">+ Add Box</button>
-    <button id="saveBtn">💾 Save</button>
+<h3>Tool Box</h3>
+<button id="collapseBtn">− Thu nhỏ</button>
+<button id="addBtn">+ Add Box</button>
+<button id="saveBtn">💾 Save</button>
 
-    Text:
-    <input id="text">
+Text:<input id="text">
+Font Size:<input id="size" type="number" value="16">
+Border Size:<input id="borderSize" type="number" value="2">
+Border Color:<input id="borderColor" type="color">
+Background:<input id="bgColor" type="color">
+Text Color:<input id="textColor" type="color">
 
-    Font Size:
-    <input id="size" type="number" value="16">
-
-    Border Size:
-    <input id="borderSize" type="number" value="2">
-
-    Border Color:
-    <input id="borderColor" type="color">
-
-    Background:
-    <input id="bgColor" type="color">
-
-    Text Color:
-    <input id="textColor" type="color">
-
-    <button id="drawLineBtn">✏️ Vẽ Line</button>
-    Line Color: <input type="color" id="lineColor" value="#ff0000">
-    Line Width: <input type="number" id="lineWidth" value="3">
+<button id="drawLineBtn">✏️ Vẽ Line</button>
+Line Color: <input type="color" id="lineColor" value="#ff0000">
+Line Width: <input type="number" id="lineWidth" value="3">
 </div>
 
 <div id="container">
-    <img src="Background.jpg">
+<img src="Background.jpg">
 </div>
 
 <script>
 let isLogin=false,currentBox=null,scale=1,offsetX=0,offsetY=0,historyStack=[];
 const container=document.getElementById("container");
 
-/* AUTO LOAD */
-window.onload=()=>{ const data=localStorage.getItem("familyTree"); if(data){ container.innerHTML=data; rebind(); } };
-
 /* LOGIN */
 loginBtn.onclick=()=>loginBox.style.display="block";
 okBtn.onclick=()=>{
     if(user.value==="a"&&pass.value==="1"){
-        isLogin=true; loginBox.style.display="none"; loginBtn.style.display="none";
-        logoutBtn.style.display="block"; tool.style.display="block";
+        isLogin=true;
+        loginBox.style.display="none";
+        loginBtn.style.display="none";
+        logoutBtn.style.display="block";
+        tool.style.display="block";
     }
 };
 logoutBtn.onclick=()=>{
-    isLogin=false; loginBtn.style.display="block"; logoutBtn.style.display="none"; tool.style.display="none"; toggleTool.style.display="none";
+    isLogin=false;
+    loginBtn.style.display="block";
+    logoutBtn.style.display="none";
+    tool.style.display="none";
+    toggleTool.style.display="none";
 };
 
-/* TOOL COLLAPSE */
+/* TOOL */
 collapseBtn.onclick=()=>{ tool.style.display="none"; toggleTool.style.display="block"; };
 toggleTool.onclick=()=>{ tool.style.display="block"; toggleTool.style.display="none"; };
 
-/* HISTORY */
-function saveHistory(){ historyStack.push(container.innerHTML); if(historyStack.length>50) historyStack.shift(); }
-function undo(){ if(historyStack.length===0) return; container.innerHTML=historyStack.pop(); rebind(); }
-document.addEventListener("keydown",e=>{ if(e.ctrlKey && e.key.toLowerCase()==="z"){ undo(); } });
-
 /* ADD BOX */
 addBtn.onclick=()=>{
-    if(!isLogin) return; saveHistory();
-    const box=document.createElement("div"); box.className="box"; box.innerText="New"; box.style.top="100px"; box.style.left="100px";
-    const handle=document.createElement("div"); handle.className="resize-handle"; box.appendChild(handle);
-    container.appendChild(box); enable(box);
+    if(!isLogin) return;
+    const box=document.createElement("div");
+    box.className="box";
+    box.innerText="New";
+    box.style.top="100px";
+    box.style.left="100px";
+
+    const handle=document.createElement("div");
+    handle.className="resize-handle";
+    box.appendChild(handle);
+
+    container.appendChild(box);
+    enable(box);
 };
 
-/* SELECT BOX */
+/* SELECT */
 function selectBox(box){
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-    box.classList.add("active"); currentBox=box;
-    text.value=box.innerText; size.value=parseInt(getComputedStyle(box).fontSize);
+    box.classList.add("active");
+    currentBox=box;
+    text.value=box.innerText;
+    size.value=parseInt(getComputedStyle(box).fontSize);
 }
 
-/* CLICK NGOÀI */
+/* CLICK OUT */
 document.addEventListener("click",(e)=>{
-    if(e.target.closest(".box")||e.target.closest(".line")) return;
+    if(e.target.closest(".box")) return;
     document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-    document.querySelectorAll(".line").forEach(l=>l.classList.remove("active"));
-    currentBox=null; selectedLine=null;
+    currentBox=null;
 });
 
-/* UPDATE BOX */
-text.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.innerText=text.value; } };
-size.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.fontSize=size.value+"px"; } };
-borderSize.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.borderWidth=borderSize.value+"px"; } };
-borderColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.borderColor=borderColor.value; } };
-bgColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.backgroundColor=bgColor.value; } };
-textColor.oninput=()=>{ if(currentBox){ saveHistory(); currentBox.style.color=textColor.value; } };
+/* UPDATE */
+text.oninput=()=>{ if(currentBox) currentBox.innerText=text.value; };
+size.oninput=()=>{ if(currentBox) currentBox.style.fontSize=size.value+"px"; };
+borderSize.oninput=()=>{ if(currentBox) currentBox.style.borderWidth=borderSize.value+"px"; };
+borderColor.oninput=()=>{ if(currentBox) currentBox.style.borderColor=borderColor.value; };
+bgColor.oninput=()=>{ if(currentBox) currentBox.style.backgroundColor=bgColor.value; };
+textColor.oninput=()=>{ if(currentBox) currentBox.style.color=textColor.value; };
 
-/* ENABLE BOX */
+/* DRAG */
+let dragging=null,dx,dy;
+document.addEventListener("mousemove",e=>{
+    if(!dragging) return;
+    dragging.style.left=(e.clientX/scale-dx)+"px";
+    dragging.style.top=(e.clientY/scale-dy)+"px";
+});
+document.addEventListener("mouseup",()=>dragging=null);
+
 function enable(box){
     const handle=box.querySelector(".resize-handle");
+
     box.onclick=e=>{ e.stopPropagation(); selectBox(box); };
-    enableDrag(box); enableResize(box,handle);
+
+    box.onmousedown=e=>{
+        if(!isLogin) return;
+        if(e.target.classList.contains("resize-handle")) return;
+        dragging=box;
+        dx=e.clientX/scale-box.offsetLeft;
+        dy=e.clientY/scale-box.offsetTop;
+    };
+
+    handle.onmousedown=e=>{
+        e.stopPropagation();
+        let startX=e.clientX, startY=e.clientY;
+        let w=box.offsetWidth, h=box.offsetHeight;
+
+        function move(ev){
+            box.style.width=(w+(ev.clientX-startX))+"px";
+            box.style.height=(h+(ev.clientY-startY))+"px";
+        }
+        function up(){
+            document.removeEventListener("mousemove",move);
+            document.removeEventListener("mouseup",up);
+        }
+        document.addEventListener("mousemove",move);
+        document.addEventListener("mouseup",up);
+    };
 }
-function rebind(){ document.querySelectorAll(".box").forEach(enable); document.querySelectorAll(".line").forEach(enableLine); }
 
-/* DRAG BOX */
-let dragging=null,dx,dy;
-document.addEventListener("mousemove",e=>{ if(!dragging) return; dragging.style.left=(e.clientX/scale-dx)+"px"; dragging.style.top=(e.clientY/scale-dy)+"px"; });
-document.addEventListener("mouseup",()=>dragging=null);
-function enableDrag(box){ box.onmousedown=e=>{ if(!isLogin) return; if(e.target.classList.contains("resize-handle")) return; saveHistory(); dragging=box; dx=e.clientX/scale-box.offsetLeft; dy=e.clientY/scale-box.offsetTop; }; }
+/* ZOOM */
+document.addEventListener("wheel",e=>{
+    if(!e.ctrlKey) return;
+    e.preventDefault();
+    scale+=e.deltaY<0?0.1:-0.1;
+    if(scale<1) scale=1;
+    container.style.transform=`scale(${scale})`;
+},{passive:false});
 
-/* RESIZE BOX */
-let resizing=null,sx,sy,sw,sh;
-document.addEventListener("mousemove",e=>{ if(!resizing) return; resizing.style.width=(sw+(e.clientX-sx)/scale)+"px"; resizing.style.height=(sh+(e.clientY-sy)/scale)+"px"; });
-document.addEventListener("mouseup",()=>resizing=null);
-function enableResize(box,handle){ handle.onmousedown=e=>{ if(!isLogin) return; e.stopPropagation(); saveHistory(); resizing=box; sx=e.clientX; sy=e.clientY; sw=box.offsetWidth; sh=box.offsetHeight; }; }
+/* ================== LINE (LeaderLine) ================== */
 
-/* PAN ZOOM */
-let panning=false,px,py;
-document.addEventListener("mousedown",e=>{ if(scale<=1) return; if(e.target.closest(".box")||e.target.closest(".line")) return; panning=true; px=e.clientX; py=e.clientY; });
-document.addEventListener("mousemove",e=>{ if(!panning) return; offsetX+=e.clientX-px; offsetY+=e.clientY-py; px=e.clientX; py=e.clientY; updateTransform(); });
-document.addEventListener("mouseup",()=>panning=false);
-function updateTransform(){ container.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`; }
-document.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault(); let newScale=scale+(e.deltaY<0?0.1:-0.1); if(newScale<=1){ scale=1; offsetX=0; offsetY=0; updateTransform(); return; } scale=newScale; updateTransform(); },{passive:false});
-
-/* SAVE */
-saveBtn.onclick=()=>{ localStorage.setItem("familyTree",container.innerHTML); alert("Đã lưu!"); };
-
-/* LINE TOOL */
-const drawLineBtn=document.getElementById("drawLineBtn");
-const lineColorInput=document.getElementById("lineColor");
-const lineWidthInput=document.getElementById("lineWidth");
 let drawLineMode=false;
-let selectedLine=null;
-let draggingLine=null;
-let dragOffset={x:0,y:0};
-let dragPart=null;
-const snapDistance=15; // Khoảng cách để snap
+let startPoint=null;
+let tempLine=null;
+let lines=[];
 
 drawLineBtn.onclick=()=>{
     if(!isLogin) return;
@@ -206,185 +207,73 @@ drawLineBtn.onclick=()=>{
     document.body.classList.add("lineCursor");
 };
 
-// Vẽ line mới (chỉ ngang hoặc dọc)
-container.addEventListener("mousedown", e=>{
+function createPoint(x,y){
+    const p=document.createElement("div");
+    p.style.position="absolute";
+    p.style.left=x+"px";
+    p.style.top=y+"px";
+    p.style.width="1px";
+    p.style.height="1px";
+    container.appendChild(p);
+    return p;
+}
+
+container.addEventListener("mousedown",e=>{
     if(!drawLineMode) return;
     if(e.target.closest(".box")) return;
 
-    saveHistory();
+    let x=e.clientX/scale;
+    let y=e.clientY/scale;
 
-    let x1=e.clientX/scale - offsetX/scale;
-    let y1=e.clientY/scale - offsetY/scale;
+    startPoint=createPoint(x,y);
 
-    const line=document.createElement("div");
-    line.className="line";
-    line.dataset.x1=x1; line.dataset.y1=y1;
-    line.dataset.x2=x1; line.dataset.y2=y1;
-    line.style.borderTop=`${lineWidthInput.value}px solid ${lineColorInput.value}`;
-    line.style.width="0px";
-    line.style.transformOrigin="0 0";
-    container.appendChild(line);
-    enableLine(line);
+    tempLine=new LeaderLine(startPoint,startPoint,{
+        color:lineColor.value,
+        size:lineWidth.value
+    });
 
-    function updateLine(l){
-        let dx=l.dataset.x2-l.dataset.x1;
-        let dy=l.dataset.y2-l.dataset.y1;
-        let len=Math.sqrt(dx*dx+dy*dy);
-        let angle=Math.atan2(dy,dx)*180/Math.PI;
-        l.style.width=len+"px";
-        l.style.transform=`rotate(${angle}deg)`;
-        l.style.left=l.dataset.x1+"px";
-        l.style.top=l.dataset.y1+"px";
+    function move(ev){
+        let x2=ev.clientX/scale;
+        let y2=ev.clientY/scale;
+
+        if(Math.abs(x2-x)>Math.abs(y2-y)) y2=y;
+        else x2=x;
+
+        let end=createPoint(x2,y2);
+        tempLine.setOptions({end:end});
+        tempLine.position();
     }
 
-    function onMove(e){
-        let x2=e.clientX/scale - offsetX/scale;
-        let y2=e.clientY/scale - offsetY/scale;
-
-        let dx = Math.abs(x2 - x1);
-        let dy = Math.abs(y2 - y1);
-
-        if(dx > dy){
-            y2 = y1; // ngang
-        } else {
-            x2 = x1; // dọc
-        }
-
-        line.dataset.x2 = x2;
-        line.dataset.y2 = y2;
-        updateLine(line);
-    }
-
-    function onUp(){
+    function up(ev){
         drawLineMode=false;
         document.body.classList.remove("lineCursor");
-        container.removeEventListener("mousemove",onMove);
-        container.removeEventListener("mouseup",onUp);
+
+        let x2=ev.clientX/scale;
+        let y2=ev.clientY/scale;
+
+        if(Math.abs(x2-x)>Math.abs(y2-y)) y2=y;
+        else x2=x;
+
+        let end=createPoint(x2,y2);
+
+        let line=new LeaderLine(startPoint,end,{
+            color:lineColor.value,
+            size:lineWidth.value
+        });
+
+        lines.push(line);
+
+        container.removeEventListener("mousemove",move);
+        container.removeEventListener("mouseup",up);
     }
 
-    container.addEventListener("mousemove",onMove);
-    container.addEventListener("mouseup",onUp);
+    container.addEventListener("mousemove",move);
+    container.addEventListener("mouseup",up);
 });
 
-/* Chỉnh màu và độ dày cho line đang chọn */
-lineColorInput.oninput = () => {
-    if (selectedLine) {
-        saveHistory();
-        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
-    }
-};
-lineWidthInput.oninput = () => {
-    if (selectedLine) {
-        saveHistory();
-        selectedLine.style.borderTop = `${lineWidthInput.value}px solid ${lineColorInput.value}`;
-    }
-};
+lineColor.oninput=()=>lines.forEach(l=>l.setOptions({color:lineColor.value}));
+lineWidth.oninput=()=>lines.forEach(l=>l.setOptions({size:lineWidth.value}));
 
-/* LINE THÔNG MINH + SNAP */
-function enableLine(line){
-    const threshold=30/scale;
-    line.addEventListener("mousemove", e=>{
-        let x1=parseFloat(line.dataset.x1), y1=parseFloat(line.dataset.y1);
-        let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
-        let mx=e.clientX/scale - offsetX/scale;
-        let my=e.clientY/scale - offsetY/scale;
-
-        let dx=x2-x1, dy=y2-y1;
-        let len=Math.sqrt(dx*dx+dy*dy);
-        let distance=Math.abs(dy*mx - dx*my + x2*y1 - y2*x1)/len;
-
-        if(Math.hypot(mx-x1,my-y1)<threshold || Math.hypot(mx-x2,my-y2)<threshold){
-            line.style.cursor="nwse-resize";
-        } else if(distance<threshold){
-            line.style.cursor="move";
-        } else line.style.cursor="default";
-    });
-
-    line.addEventListener("mousedown", e=>{
-        e.stopPropagation();
-        selectedLine && selectedLine.classList.remove("active");
-        selectedLine=line;
-        line.classList.add("active");
-
-        lineColorInput.value = getComputedStyle(line).borderTopColor;
-        lineWidthInput.value = parseInt(getComputedStyle(line).borderTopWidth);
-
-        let x1=parseFloat(line.dataset.x1), y1=parseFloat(line.dataset.y1);
-        let x2=parseFloat(line.dataset.x2), y2=parseFloat(line.dataset.y2);
-        let mx=e.clientX/scale - offsetX/scale;
-        let my=e.clientY/scale - offsetY/scale;
-
-        if(Math.hypot(mx-x1,my-y1)<threshold) dragPart="start";
-        else if(Math.hypot(mx-x2,my-y2)<threshold) dragPart="end";
-        else dragPart="middle";
-
-        draggingLine=line;
-        dragOffset.x=mx-(x1+(x2-x1)/2);
-        dragOffset.y=my-(y1+(y2-y1)/2);
-
-        document.addEventListener("mousemove", moveLine);
-        document.addEventListener("mouseup", stopMoveLine);
-    });
-}
-
-function moveLine(e){
-    if(!draggingLine) return;
-    let mx=e.clientX/scale - offsetX/scale;
-    let my=e.clientY/scale - offsetY/scale;
-
-    let x1=parseFloat(draggingLine.dataset.x1);
-    let y1=parseFloat(draggingLine.dataset.y1);
-    let x2=parseFloat(draggingLine.dataset.x2);
-    let y2=parseFloat(draggingLine.dataset.y2);
-
-    if(dragPart==="start"){
-        x1=mx; y1=my;
-        // SNAP ĐẦU
-        document.querySelectorAll(".line").forEach(l=>{
-            if(l===draggingLine) return;
-            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
-                if(Math.hypot(x1-lx,y1-ly)<snapDistance){
-                    x1=lx; y1=ly;
-                }
-            });
-        });
-        draggingLine.dataset.x1=x1; draggingLine.dataset.y1=y1;
-    } else if(dragPart==="end"){
-        x2=mx; y2=my;
-        // SNAP ĐẦU
-        document.querySelectorAll(".line").forEach(l=>{
-            if(l===draggingLine) return;
-            [[l.dataset.x1,l.dataset.y1],[l.dataset.x2,l.dataset.y2]].forEach(([lx,ly])=>{
-                if(Math.hypot(x2-lx,y2-ly)<snapDistance){
-                    x2=lx; y2=ly;
-                }
-            });
-        });
-        draggingLine.dataset.x2=x2; draggingLine.dataset.y2=y2;
-    } else if(dragPart==="middle"){
-        let dxMove=mx-(x1+(x2-x1)/2);
-        let dyMove=my-(y1+(y2-y1)/2);
-        draggingLine.dataset.x1=x1+dxMove;
-        draggingLine.dataset.y1=y1+dyMove;
-        draggingLine.dataset.x2=x2+dxMove;
-        draggingLine.dataset.y2=y2+dyMove;
-    }
-
-    let dxLine=draggingLine.dataset.x2-draggingLine.dataset.x1;
-    let dyLine=draggingLine.dataset.y2-draggingLine.dataset.y1;
-    let len=Math.sqrt(dxLine*dxLine+dyLine*dyLine);
-    let angle=Math.atan2(dyLine,dxLine)*180/Math.PI;
-    draggingLine.style.width=len+"px";
-    draggingLine.style.transform=`rotate(${angle}deg)`;
-    draggingLine.style.left=draggingLine.dataset.x1+"px";
-    draggingLine.style.top=draggingLine.dataset.y1+"px";
-}
-
-function stopMoveLine(){
-    document.removeEventListener("mousemove", moveLine);
-    document.removeEventListener("mouseup", stopMoveLine);
-    draggingLine=null; dragPart=null;
-}
 </script>
 </body>
 </html>
