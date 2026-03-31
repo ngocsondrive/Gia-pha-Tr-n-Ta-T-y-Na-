@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tran Ta Tay Na Editor 7</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="../background-banner-editor-6/"></iframe>
+  <script>
+    const frame = document.getElementById('appFrame');
+
+    function injectAlignmentPatch() {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.eval(`
+        if (!window.__horizontalAlignPatched) {
+          window.__horizontalAlignPatched = true;
+          const SNAP_THRESHOLD = 10;
+          const guideLayer = document.createElement('div');
+          guideLayer.style.position = 'absolute';
+          guideLayer.style.inset = '0';
+          guideLayer.style.pointerEvents = 'none';
+          guideLayer.style.zIndex = '30';
+
+          const guideLine = document.createElement('div');
+          guideLine.style.position = 'absolute';
+          guideLine.style.height = '0';
+          guideLine.style.borderTop = '2px dashed rgba(47, 128, 237, 0.9)';
+          guideLine.style.display = 'none';
+          guideLayer.appendChild(guideLine);
+          overlay.appendChild(guideLayer);
+
+          function hideAlignGuide() {
+            guideLine.style.display = 'none';
+          }
+
+          function showAlignGuide(y, left, right) {
+            guideLine.style.display = 'block';
+            guideLine.style.top = y + 'px';
+            guideLine.style.left = left + 'px';
+            guideLine.style.width = Math.max(0, right - left) + 'px';
+          }
+
+          const originalMoveActiveBox = moveActiveBox;
+          moveActiveBox = function(event) {
+            const box = boxes.find((item) => item.id === activeBoxId);
+            if (!box) return originalMoveActiveBox(event);
+
+            const proposedX = Math.max(0, dragOriginX + (event.clientX - dragStartX) / scale);
+            let proposedY = Math.max(0, dragOriginY + (event.clientY - dragStartY) / scale);
+
+            const currentLines = [
+              { key: 'top', value: proposedY },
+              { key: 'center', value: proposedY + box.height / 2 },
+              { key: 'bottom', value: proposedY + box.height },
+            ];
+
+            let best = null;
+            boxes.forEach((other) => {
+              if (other.id === activeBoxId) return;
+              const otherLines = [
+                { key: 'top', value: other.y },
+                { key: 'center', value: other.y + other.height / 2 },
+                { key: 'bottom', value: other.y + other.height },
+              ];
+              currentLines.forEach((currentLine) => {
+                otherLines.forEach((otherLine) => {
+                  const delta = otherLine.value - currentLine.value;
+                  const distance = Math.abs(delta);
+                  if (distance > SNAP_THRESHOLD) return;
+                  if (!best || distance < best.distance) {
+                    best = {
+                      distance,
+                      snappedY: proposedY + delta,
+                      lineY: otherLine.value,
+                      left: Math.min(proposedX, other.x),
+                      right: Math.max(proposedX + box.width, other.x + other.width),
+                    };
+                  }
+                });
+              });
+            });
+
+            box.x = proposedX;
+            box.y = best ? Math.max(0, best.snappedY) : proposedY;
+            setDirty(true);
+            renderScene();
+
+            if (best) {
+              showAlignGuide(best.lineY, best.left, best.right);
+            } else {
+              hideAlignGuide();
+            }
+          };
+
+          const originalStopBoxInteractions = stopBoxInteractions;
+          stopBoxInteractions = function() {
+            hideAlignGuide();
+            return originalStopBoxInteractions();
+          };
+        }
+      `);
+    }
+
+    frame.addEventListener('load', injectAlignmentPatch);
+  </script>
+</body>
+</html>
