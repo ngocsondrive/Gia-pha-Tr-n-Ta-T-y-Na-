@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tran Ta Tay Na Editor 3</title>
+  <style>
+    :root {
+      --accent: #8b531f;
+      --accent-dark: #6b3d16;
+      --panel: rgba(255, 248, 237, 0.96);
+      --line: rgba(112, 69, 31, 0.18);
+      --shadow: 0 16px 36px rgba(86, 48, 18, 0.16);
+      --banner-width: clamp(84px, 9vw, 132px);
+      --banner-top: 78px;
+      --banner-side: 8px;
+      --tool-width: min(340px, calc(100vw - 24px));
+      --selected: #2f80ed;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body.is-panning,
+    body.is-dragging-box,
+    body.is-resizing-box {
+      user-select: none;
+    }
+    body.is-panning {
+      cursor: grab;
+      overflow: hidden;
+    }
+    .topbar {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: calc(100vw - 24px);
+    }
+    .auth-btn,
+    .zoom-btn,
+    .tool-btn {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--accent-dark);
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+    .auth-btn:hover,
+    .zoom-btn:hover,
+    .tool-btn:hover { background: #fff; }
+    .status {
+      display: none;
+      align-items: center;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(107, 61, 22, 0.92);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: var(--shadow);
+    }
+    .save-state {
+      display: none;
+      align-items: center;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(47, 128, 237, 0.12);
+      color: #275ea8;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(47, 128, 237, 0.25);
+    }
+    .banner {
+      position: fixed;
+      top: var(--banner-top);
+      z-index: 60;
+      width: var(--banner-width);
+      pointer-events: none;
+      filter: drop-shadow(0 10px 18px rgba(73, 35, 12, 0.18));
+    }
+    .banner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .banner-left {
+      left: var(--banner-side);
+      clip-path: inset(0 12% 0 13%);
+    }
+    .banner-right {
+      right: var(--banner-side);
+      clip-path: inset(0 13% 0 12%);
+    }
+    .hint {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 80;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 248, 237, 0.92);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 600;
+      max-width: min(540px, calc(100vw - 24px));
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      overflow: auto;
+    }
+    .canvas {
+      position: relative;
+      transform-origin: top left;
+      will-change: transform;
+    }
+    .canvas img {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+    }
+    .lines-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .line-path {
+      fill: none;
+      stroke-linecap: square;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .line-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 18;
+      cursor: pointer;
+    }
+    .line-group.selected .line-path {
+      filter: drop-shadow(0 0 4px rgba(47, 128, 237, 0.5));
+    }
+    .box {
+      position: absolute;
+      min-width: 80px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #8b531f;
+      color: #5b3416;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: move;
+      box-shadow: 0 10px 18px rgba(54, 28, 9, 0.12);
+      transition: box-shadow 160ms ease, outline-color 160ms ease;
+    }
+    .box.selected {
+      outline: 3px dashed var(--selected);
+      box-shadow: 0 14px 24px rgba(47, 128, 237, 0.24);
+    }
+    .box-content {
+      width: 100%;
+      pointer-events: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.2;
+    }
+    .resize-handle {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--selected);
+      border: 2px solid #fff;
+      cursor: nwse-resize;
+      box-shadow: 0 4px 10px rgba(47, 128, 237, 0.35);
+    }
+    .toolbox {
+      position: fixed;
+      top: 58px;
+      right: 12px;
+      z-index: 85;
+      width: var(--tool-width);
+      max-height: calc(100vh - 82px);
+      overflow: auto;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(53, 28, 11, 0.22);
+      display: none;
+    }
+    .toolbox.open { display: block; }
+    .toolbox-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .toolbox h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--accent-dark);
+    }
+    .toolbox-grid { display: grid; gap: 10px; }
+    .toolbox-row { display: grid; gap: 6px; }
+    .toolbox-row label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #5d432f;
+    }
+    .toolbox-row input,
+    .toolbox-row textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fffdf9;
+      outline: none;
+    }
+    .toolbox-row textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+    .toolbox-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .toolbox-actions button {
+      flex: 1;
+      min-width: 96px;
+    }
+    .mini-toolbox {
+      position: fixed;
+      top: 58px;
+      right: 12px;
+      z-index: 85;
+      display: none;
+    }
+    .mini-toolbox.show { display: block; }
+    .empty-state {
+      font-size: 12px;
+      color: #7a634f;
+      background: rgba(255,255,255,0.5);
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed rgba(112, 69, 31, 0.24);
+    }
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(47, 128, 237, 0.12);
+      color: #275ea8;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(47, 128, 237, 0.22);
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(41, 22, 9, 0.28);
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal.open { display: flex; }
+    .card {
+      width: min(360px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(53, 28, 11, 0.22);
+      padding: 18px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--accent-dark);
+    }
+    .field { display: grid; gap: 6px; margin-bottom: 12px; }
+    .field label { font-size: 13px; font-weight: 600; color: #5d432f; }
+    .field input {
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 0 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fffdf9;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .secondary-btn,
+    .primary-btn {
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .secondary-btn { background: #fff; color: #6a4a31; }
+    .primary-btn { background: var(--accent); color: #fff; border-color: transparent; }
+    .error {
+      min-height: 18px;
+      margin-top: 8px;
+      color: #b42318;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    @media (max-width: 760px) {
+      .banner { display: none; }
+      .toolbox, .mini-toolbox { right: 8px; }
+      .topbar { right: 8px; left: 8px; max-width: none; }
+      .hint { left: 8px; right: 8px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div id="status" class="status">Đang ở chế độ chỉnh sửa</div>
+    <div id="saveState" class="save-state">Đã lưu</div>
+    <button id="zoomOutBtn" class="zoom-btn" type="button">-</button>
+    <button id="zoomResetBtn" class="zoom-btn" type="button">100%</button>
+    <button id="zoomInBtn" class="zoom-btn" type="button">+</button>
+    <button id="loginBtn" class="auth-btn" type="button">Đăng nhập</button>
+    <button id="logoutBtn" class="auth-btn" type="button" hidden>Đăng xuất</button>
+  </div>
+
+  <div class="banner banner-left">
+    <img src="../1a.png" alt="Câu đối trái">
+  </div>
+  <div class="banner banner-right">
+    <img src="../1b.png" alt="Câu đối phải">
+  </div>
+
+  <div class="hint">Line có thể nối từ line sang box theo cạnh gần nhất. Có cỡ chữ và copy box.</div>
+
+  <aside id="toolbox" class="toolbox">
+    <div class="toolbox-header">
+      <h2>Toolbox</h2>
+      <button id="collapseToolboxBtn" class="tool-btn" type="button">Thu nhỏ</button>
+    </div>
+    <div class="toolbox-grid">
+      <div class="toolbox-actions">
+        <button id="saveBtn" class="tool-btn" type="button">Lưu</button>
+        <button id="addBoxBtn" class="tool-btn" type="button">Tạo box</button>
+        <button id="copyBoxBtn" class="tool-btn" type="button">Copy box</button>
+      </div>
+      <div class="toolbox-actions">
+        <button id="startLineBtn" class="tool-btn" type="button">Vẽ line</button>
+        <button id="cancelLineBtn" class="tool-btn" type="button">Hủy line</button>
+        <button id="deleteSelectionBtn" class="tool-btn" type="button">Xóa chọn</button>
+      </div>
+      <div id="modeState" class="mode-pill">Chế độ thường</div>
+      <div class="toolbox-row">
+        <label for="boxTextInput">Nội dung box</label>
+        <textarea id="boxTextInput" placeholder="Nhập chữ cho box"></textarea>
+      </div>
+      <div class="toolbox-row">
+        <label for="boxFontSizeInput">Cỡ chữ box</label>
+        <input id="boxFontSizeInput" type="number" min="10" max="80" step="1" value="20">
+      </div>
+      <div class="toolbox-row">
+        <label for="boxBgInput">Màu nền box</label>
+        <input id="boxBgInput" type="color" value="#fff6d9">
+      </div>
+      <div class="toolbox-row">
+        <label for="boxBorderInput">Màu viền box</label>
+        <input id="boxBorderInput" type="color" value="#8b531f">
+      </div>
+      <div class="toolbox-row">
+        <label for="boxTextColorInput">Màu chữ box</label>
+        <input id="boxTextColorInput" type="color" value="#5b3416">
+      </div>
+      <div class="toolbox-row">
+        <label for="boxBorderWidthInput">Độ dày viền box</label>
+        <input id="boxBorderWidthInput" type="number" min="0" max="20" step="1" value="2">
+      </div>
+      <div class="toolbox-row">
+        <label for="lineColorInput">Màu line</label>
+        <input id="lineColorInput" type="color" value="#8b531f">
+      </div>
+      <div class="toolbox-row">
+        <label for="lineWidthInput">Độ dày line</label>
+        <input id="lineWidthInput" type="number" min="1" max="20" step="1" value="3">
+      </div>
+      <div id="toolboxState" class="empty-state">Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.</div>
+    </div>
+  </aside>
+
+  <div id="miniToolbox" class="mini-toolbox">
+    <button id="openToolboxBtn" class="tool-btn" type="button">Mở toolbox</button>
+  </div>
+
+  <main id="stage" class="stage">
+    <div id="canvas" class="canvas">
+      <img id="mainImage" src="../12%20(2).png" alt="Background 12 (2)">
+      <div id="overlay" class="overlay">
+        <svg id="linesSvg" class="lines-svg"></svg>
+      </div>
+    </div>
+  </main>
+
+  <div id="loginModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h2>Đăng nhập chỉnh sửa</h2>
+      <div class="field">
+        <label for="username">Tài khoản</label>
+        <input id="username" type="text" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">Mật khẩu</label>
+        <input id="password" type="password" autocomplete="current-password">
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" class="secondary-btn" type="button">Hủy</button>
+        <button id="submitBtn" class="primary-btn" type="button">Vào chỉnh sửa</button>
+      </div>
+      <div id="error" class="error"></div>
+    </div>
+  </div>
+
+  <script>
+    const AUTH_KEY = 'background-scroll-admin-auth';
+    const STORAGE_KEY = 'background-banner-editor-3-data';
+    const USERNAME = 'admin';
+    const PASSWORD = '123456';
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    const stage = document.getElementById('stage');
+    const canvas = document.getElementById('canvas');
+    const overlay = document.getElementById('overlay');
+    const linesSvg = document.getElementById('linesSvg');
+    const image = document.getElementById('mainImage');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const statusEl = document.getElementById('status');
+    const saveState = document.getElementById('saveState');
+    const modal = document.getElementById('loginModal');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const errorEl = document.getElementById('error');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const toolbox = document.getElementById('toolbox');
+    const miniToolbox = document.getElementById('miniToolbox');
+    const collapseToolboxBtn = document.getElementById('collapseToolboxBtn');
+    const openToolboxBtn = document.getElementById('openToolboxBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const addBoxBtn = document.getElementById('addBoxBtn');
+    const copyBoxBtn = document.getElementById('copyBoxBtn');
+    const startLineBtn = document.getElementById('startLineBtn');
+    const cancelLineBtn = document.getElementById('cancelLineBtn');
+    const deleteSelectionBtn = document.getElementById('deleteSelectionBtn');
+    const modeState = document.getElementById('modeState');
+    const boxTextInput = document.getElementById('boxTextInput');
+    const boxFontSizeInput = document.getElementById('boxFontSizeInput');
+    const boxBgInput = document.getElementById('boxBgInput');
+    const boxBorderInput = document.getElementById('boxBorderInput');
+    const boxTextColorInput = document.getElementById('boxTextColorInput');
+    const boxBorderWidthInput = document.getElementById('boxBorderWidthInput');
+    const lineColorInput = document.getElementById('lineColorInput');
+    const lineWidthInput = document.getElementById('lineWidthInput');
+    const toolboxState = document.getElementById('toolboxState');
+
+    let minScale = 1;
+    let scale = 1;
+    let maxScale = 4;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let startPanX = 0;
+    let startPanY = 0;
+    let startMouseX = 0;
+    let startMouseY = 0;
+
+    let boxes = [];
+    let lines = [];
+    let selectedBoxId = null;
+    let selectedLineId = null;
+    let historyStack = [];
+    let isDirty = false;
+
+    let isDraggingBox = false;
+    let isResizingBox = false;
+    let activeBoxId = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragOriginX = 0;
+    let dragOriginY = 0;
+    let resizeOriginWidth = 0;
+    let resizeOriginHeight = 0;
+
+    let lineMode = false;
+    let pendingLineStart = null;
+
+    function isLoggedIn() {
+      return sessionStorage.getItem(AUTH_KEY) === 'true';
+    }
+
+    function setDirty(value) {
+      isDirty = value;
+      saveState.style.display = isLoggedIn() ? 'flex' : 'none';
+      saveState.textContent = value ? 'Chưa lưu' : 'Đã lưu';
+      saveState.style.background = value ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
+      saveState.style.color = value ? '#9a3d1f' : '#1f7a45';
+      saveState.style.borderColor = value ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
+    }
+
+    function renderAuth() {
+      const loggedIn = isLoggedIn();
+      loginBtn.hidden = loggedIn;
+      logoutBtn.hidden = !loggedIn;
+      statusEl.style.display = loggedIn ? 'flex' : 'none';
+      saveState.style.display = loggedIn ? 'flex' : 'none';
+      toolbox.classList.toggle('open', loggedIn && !miniToolbox.classList.contains('show'));
+      if (!loggedIn) {
+        toolbox.classList.remove('open');
+        miniToolbox.classList.remove('show');
+      }
+      setDirty(isDirty);
+    }
+
+    function openModal() {
+      errorEl.textContent = '';
+      usernameInput.value = '';
+      passwordInput.value = '';
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => usernameInput.focus(), 0);
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function setBaseSize() {
+      canvas.style.width = `${window.innerWidth}px`;
+      stage.style.height = `${window.innerHeight}px`;
+      const overlayHeight = image.offsetHeight || image.naturalHeight || 1;
+      overlay.style.width = `${window.innerWidth}px`;
+      overlay.style.height = `${overlayHeight}px`;
+      linesSvg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${overlayHeight}`);
+    }
+
+    function applyTransform() {
+      canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomResetBtn.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function resetView() {
+      scale = minScale;
+      panX = 0;
+      panY = 0;
+      document.body.style.overflow = 'auto';
+      setBaseSize();
+      applyTransform();
+    }
+
+    function zoomAt(nextScale, clientX, clientY) {
+      const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
+      if (boundedScale === scale) return;
+      const rect = canvas.getBoundingClientRect();
+      const pointX = clientX - rect.left;
+      const pointY = clientY - rect.top;
+      const ratio = boundedScale / scale;
+      panX = clientX - pointX * ratio;
+      panY = clientY - pointY * ratio;
+      scale = boundedScale;
+      document.body.style.overflow = scale > minScale ? 'hidden' : 'auto';
+      if (scale === minScale) {
+        panX = 0;
+        panY = 0;
+      }
+      applyTransform();
+    }
+
+    function fitInitial() {
+      minScale = 1;
+      resetView();
+      renderScene();
+    }
+
+    function cloneState() {
+      return JSON.stringify({ boxes, lines, selectedBoxId, selectedLineId });
+    }
+
+    function pushHistory() {
+      historyStack.push(cloneState());
+      if (historyStack.length > 60) historyStack.shift();
+    }
+
+    function restoreState(serialized) {
+      const state = JSON.parse(serialized);
+      boxes = state.boxes || [];
+      lines = state.lines || [];
+      selectedBoxId = state.selectedBoxId || null;
+      selectedLineId = state.selectedLineId || null;
+      renderScene();
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ boxes, lines }));
+      setDirty(false);
+    }
+
+    function loadData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        boxes = Array.isArray(saved.boxes) ? saved.boxes : [];
+        lines = Array.isArray(saved.lines) ? saved.lines : [];
+      } catch {
+        boxes = [];
+        lines = [];
+      }
+      setDirty(false);
+    }
+
+    function getSelectedBox() {
+      return boxes.find((box) => box.id === selectedBoxId) || null;
+    }
+
+    function getSelectedLine() {
+      return lines.find((line) => line.id === selectedLineId) || null;
+    }
+
+    function clearSelection() {
+      selectedBoxId = null;
+      selectedLineId = null;
+    }
+
+    function selectBox(id) {
+      selectedBoxId = id;
+      selectedLineId = null;
+      renderScene();
+    }
+
+    function selectLine(id) {
+      selectedLineId = id;
+      selectedBoxId = null;
+      renderScene();
+    }
+
+    function setLineMode(enabled) {
+      lineMode = enabled;
+      if (!enabled) pendingLineStart = null;
+      modeState.textContent = enabled ? (pendingLineStart ? 'Chọn điểm kết thúc line' : 'Chọn điểm bắt đầu line') : 'Chế độ thường';
+      startLineBtn.style.background = enabled ? 'rgba(47,128,237,0.12)' : 'rgba(255, 248, 237, 0.96)';
+    }
+
+    function normalizeColor(value, fallback) {
+      return /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
+    }
+
+    function syncToolbox() {
+      const selectedBox = getSelectedBox();
+      const selectedLine = getSelectedLine();
+      const hasBox = Boolean(selectedBox);
+      const hasLine = Boolean(selectedLine);
+
+      boxTextInput.disabled = !hasBox;
+      boxFontSizeInput.disabled = !hasBox;
+      boxBgInput.disabled = !hasBox;
+      boxBorderInput.disabled = !hasBox;
+      boxTextColorInput.disabled = !hasBox;
+      boxBorderWidthInput.disabled = !hasBox;
+      copyBoxBtn.disabled = !hasBox;
+      lineColorInput.disabled = !(hasLine || lineMode);
+      lineWidthInput.disabled = !(hasLine || lineMode);
+      deleteSelectionBtn.disabled = !(hasBox || hasLine);
+      cancelLineBtn.disabled = !lineMode;
+
+      if (hasBox) {
+        boxTextInput.value = selectedBox.text;
+        boxFontSizeInput.value = String(selectedBox.fontSize || 20);
+        boxBgInput.value = normalizeColor(selectedBox.background, '#fff6d9');
+        boxBorderInput.value = normalizeColor(selectedBox.borderColor, '#8b531f');
+        boxTextColorInput.value = normalizeColor(selectedBox.textColor, '#5b3416');
+        boxBorderWidthInput.value = String(selectedBox.borderWidth);
+        toolboxState.textContent = `Đang chỉnh box: ${selectedBox.id}`;
+      } else {
+        boxTextInput.value = '';
+        boxFontSizeInput.value = '20';
+        boxBgInput.value = '#fff6d9';
+        boxBorderInput.value = '#8b531f';
+        boxTextColorInput.value = '#5b3416';
+        boxBorderWidthInput.value = '2';
+      }
+
+      if (hasLine) {
+        lineColorInput.value = normalizeColor(selectedLine.color, '#8b531f');
+        lineWidthInput.value = String(selectedLine.width);
+        toolboxState.textContent = `Đang chỉnh line: ${selectedLine.id}`;
+      } else if (!lineMode) {
+        lineColorInput.value = '#8b531f';
+        lineWidthInput.value = '3';
+        if (!hasBox) toolboxState.textContent = 'Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.';
+      }
+    }
+
+    function renderBoxes() {
+      overlay.querySelectorAll('.box').forEach((el) => el.remove());
+      boxes.forEach((box) => {
+        const el = document.createElement('div');
+        el.className = `box${box.id === selectedBoxId ? ' selected' : ''}`;
+        el.style.left = `${box.x}px`;
+        el.style.top = `${box.y}px`;
+        el.style.width = `${box.width}px`;
+        el.style.height = `${box.height}px`;
+        el.style.background = box.background;
+        el.style.borderColor = box.borderColor;
+        el.style.color = box.textColor;
+        el.style.borderWidth = `${box.borderWidth}px`;
+        el.style.fontSize = `${box.fontSize || 20}px`;
+        el.dataset.id = box.id;
+
+        const content = document.createElement('div');
+        content.className = 'box-content';
+        content.textContent = box.text;
+        el.appendChild(content);
+
+        const handle = document.createElement('div');
+        handle.className = 'resize-handle';
+        handle.dataset.id = box.id;
+        el.appendChild(handle);
+
+        el.addEventListener('mousedown', onBoxMouseDown);
+        el.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (lineMode) {
+            handleLineTargetBox(box, event);
+            return;
+          }
+          selectBox(box.id);
+        });
+        handle.addEventListener('mousedown', onResizeMouseDown);
+        overlay.appendChild(el);
+      });
+    }
+
+    function getBoxAnchor(box, side) {
+      if (side === 'top') return { x: box.x + box.width / 2, y: box.y, side };
+      if (side === 'bottom') return { x: box.x + box.width / 2, y: box.y + box.height, side };
+      if (side === 'left') return { x: box.x, y: box.y + box.height / 2, side };
+      return { x: box.x + box.width, y: box.y + box.height / 2, side: 'right' };
+    }
+
+    function sideFromBoxClick(box, event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / scale;
+      const y = (event.clientY - rect.top) / scale;
+      return nearestSideToPoint(box, { x, y });
+    }
+
+    function nearestSideToPoint(box, point) {
+      const distances = [
+        { side: 'left', value: Math.abs(point.x - box.x) },
+        { side: 'right', value: Math.abs(point.x - (box.x + box.width)) },
+        { side: 'top', value: Math.abs(point.y - box.y) },
+        { side: 'bottom', value: Math.abs(point.y - (box.y + box.height)) },
+      ];
+      distances.sort((a, b) => a.value - b.value);
+      return distances[0].side;
+    }
+
+    function makeOrthogonalPath(start, end) {
+      if (Math.abs(start.x - end.x) < 1 || Math.abs(start.y - end.y) < 1) return [start, end];
+      const preferHorizontal = start.side === 'left' || start.side === 'right';
+      if (preferHorizontal) {
+        const midX = (start.x + end.x) / 2;
+        return [start, { x: midX, y: start.y }, { x: midX, y: end.y }, end];
+      }
+      const midY = (start.y + end.y) / 2;
+      return [start, { x: start.x, y: midY }, { x: end.x, y: midY }, end];
+    }
+
+    function pointsToPath(points) {
+      return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+    }
+
+    function interpolate(a, b, t) {
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+
+    function resolveLineEndpoint(target, visited = new Set()) {
+      if (!target) return null;
+      if (target.kind === 'point') return { x: target.x, y: target.y, side: target.side || 'right' };
+      if (target.kind === 'box') {
+        const box = boxes.find((item) => item.id === target.boxId);
+        if (!box) return null;
+        return getBoxAnchor(box, target.side);
+      }
+      if (target.kind === 'line') {
+        const geometry = getLineGeometry(target.lineId, visited);
+        if (!geometry) return null;
+        const a = geometry.points[target.segmentIndex];
+        const b = geometry.points[target.segmentIndex + 1];
+        if (!a || !b) return null;
+        const point = interpolate(a, b, target.t);
+        point.side = a.x === b.x ? 'left' : 'top';
+        return point;
+      }
+      return null;
+    }
+
+    function getLineGeometry(lineId, visited = new Set()) {
+      if (visited.has(lineId)) return null;
+      visited.add(lineId);
+      const line = lines.find((item) => item.id === lineId);
+      if (!line) return null;
+      const start = resolveLineEndpoint(line.start, visited);
+      const end = resolveLineEndpoint(line.end, visited);
+      if (!start || !end) return null;
+      return { line, points: makeOrthogonalPath(start, end) };
+    }
+
+    function renderLines() {
+      linesSvg.innerHTML = '';
+      lines.forEach((line) => {
+        const geometry = getLineGeometry(line.id);
+        if (!geometry) return;
+        const pathValue = pointsToPath(geometry.points);
+
+        const group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('class', `line-group${line.id === selectedLineId ? ' selected' : ''}`);
+
+        const hit = document.createElementNS(SVG_NS, 'path');
+        hit.setAttribute('d', pathValue);
+        hit.setAttribute('class', 'line-hit');
+        hit.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (lineMode) {
+            handleLineTargetLine(line, event);
+            return;
+          }
+          selectLine(line.id);
+        });
+
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('d', pathValue);
+        path.setAttribute('class', 'line-path');
+        path.setAttribute('stroke', line.color);
+        path.setAttribute('stroke-width', String(line.width));
+
+        group.appendChild(hit);
+        group.appendChild(path);
+        linesSvg.appendChild(group);
+      });
+    }
+
+    function renderScene() {
+      renderBoxes();
+      renderLines();
+      syncToolbox();
+    }
+
+    function addBox() {
+      pushHistory();
+      const id = `box-${Date.now()}`;
+      boxes.push({
+        id,
+        x: 120,
+        y: 160 + boxes.length * 20,
+        width: 220,
+        height: 96,
+        text: 'Box mới',
+        fontSize: 20,
+        background: '#fff6d9',
+        borderColor: '#8b531f',
+        textColor: '#5b3416',
+        borderWidth: 2,
+      });
+      selectedBoxId = id;
+      selectedLineId = null;
+      setDirty(true);
+      renderScene();
+    }
+
+    function copySelectedBox() {
+      const box = getSelectedBox();
+      if (!box) return;
+      pushHistory();
+      const id = `box-${Date.now()}`;
+      boxes.push({ ...box, id, x: box.x + 24, y: box.y + 24 });
+      selectedBoxId = id;
+      selectedLineId = null;
+      setDirty(true);
+      renderScene();
+    }
+
+    function deleteSelection() {
+      if (selectedBoxId) {
+        pushHistory();
+        boxes = boxes.filter((box) => box.id !== selectedBoxId);
+        lines = lines.filter((line) => line.start.boxId !== selectedBoxId && line.end.boxId !== selectedBoxId);
+        selectedBoxId = null;
+        setDirty(true);
+        renderScene();
+        return;
+      }
+      if (selectedLineId) {
+        pushHistory();
+        lines = lines.filter((line) => line.id !== selectedLineId);
+        selectedLineId = null;
+        setDirty(true);
+        renderScene();
+      }
+    }
+
+    function updateSelectedBox(patch) {
+      const box = getSelectedBox();
+      if (!box) return;
+      Object.assign(box, patch);
+      setDirty(true);
+      renderScene();
+    }
+
+    function updateSelectedLine(patch) {
+      const line = getSelectedLine();
+      if (!line) return;
+      Object.assign(line, patch);
+      setDirty(true);
+      renderScene();
+    }
+
+    function undoState() {
+      const previous = historyStack.pop();
+      if (!previous) return;
+      restoreState(previous);
+      setDirty(true);
+    }
+
+    function onBoxMouseDown(event) {
+      if (!isLoggedIn() || lineMode) return;
+      if (event.target.classList.contains('resize-handle')) return;
+      if (event.button !== 0) return;
+      const id = event.currentTarget.dataset.id;
+      const box = boxes.find((item) => item.id === id);
+      if (!box) return;
+      pushHistory();
+      selectBox(id);
+      isDraggingBox = true;
+      activeBoxId = id;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      dragOriginX = box.x;
+      dragOriginY = box.y;
+      document.body.classList.add('is-dragging-box');
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function onResizeMouseDown(event) {
+      if (!isLoggedIn() || lineMode) return;
+      if (event.button !== 0) return;
+      const id = event.currentTarget.dataset.id;
+      const box = boxes.find((item) => item.id === id);
+      if (!box) return;
+      pushHistory();
+      selectBox(id);
+      isResizingBox = true;
+      activeBoxId = id;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      resizeOriginWidth = box.width;
+      resizeOriginHeight = box.height;
+      document.body.classList.add('is-resizing-box');
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function moveActiveBox(event) {
+      const box = boxes.find((item) => item.id === activeBoxId);
+      if (!box) return;
+      box.x = Math.max(0, dragOriginX + (event.clientX - dragStartX) / scale);
+      box.y = Math.max(0, dragOriginY + (event.clientY - dragStartY) / scale);
+      setDirty(true);
+      renderScene();
+    }
+
+    function resizeActiveBox(event) {
+      const box = boxes.find((item) => item.id === activeBoxId);
+      if (!box) return;
+      box.width = Math.max(80, resizeOriginWidth + (event.clientX - dragStartX) / scale);
+      box.height = Math.max(40, resizeOriginHeight + (event.clientY - dragStartY) / scale);
+      setDirty(true);
+      renderScene();
+    }
+
+    function stopBoxInteractions() {
+      isDraggingBox = false;
+      isResizingBox = false;
+      activeBoxId = null;
+      document.body.classList.remove('is-dragging-box');
+      document.body.classList.remove('is-resizing-box');
+    }
+
+    function startLineMode() {
+      clearSelection();
+      pendingLineStart = null;
+      setLineMode(true);
+      renderScene();
+    }
+
+    function cancelLineMode() {
+      pendingLineStart = null;
+      setLineMode(false);
+      renderScene();
+    }
+
+    function createLine(startTarget, endTarget) {
+      pushHistory();
+      lines.push({
+        id: `line-${Date.now()}`,
+        start: startTarget,
+        end: endTarget,
+        color: lineColorInput.value,
+        width: Math.max(1, Number(lineWidthInput.value) || 3),
+      });
+      pendingLineStart = null;
+      setLineMode(false);
+      setDirty(true);
+      renderScene();
+    }
+
+    function handleLineTargetBox(box, event) {
+      const clickedSide = sideFromBoxClick(box, event);
+      if (!pendingLineStart) {
+        pendingLineStart = { kind: 'box', boxId: box.id, side: clickedSide };
+        setLineMode(true);
+        modeState.textContent = 'Chọn điểm kết thúc line';
+        return;
+      }
+
+      let endSide = clickedSide;
+      if (pendingLineStart.kind === 'line') {
+        const anchor = resolveLineEndpoint(pendingLineStart);
+        endSide = nearestSideToPoint(box, anchor);
+      }
+      createLine(pendingLineStart, { kind: 'box', boxId: box.id, side: endSide });
+    }
+
+    function nearestPointOnSegment(point, a, b) {
+      if (a.x === b.x) {
+        const minY = Math.min(a.y, b.y);
+        const maxY = Math.max(a.y, b.y);
+        return { x: a.x, y: Math.min(maxY, Math.max(minY, point.y)) };
+      }
+      const minX = Math.min(a.x, b.x);
+      const maxX = Math.max(a.x, b.x);
+      return { x: Math.min(maxX, Math.max(minX, point.x)), y: a.y };
+    }
+
+    function segmentT(point, a, b) {
+      if (a.x === b.x) {
+        const length = b.y - a.y || 1;
+        return (point.y - a.y) / length;
+      }
+      const length = b.x - a.x || 1;
+      return (point.x - a.x) / length;
+    }
+
+    function getLineAttachTarget(line, event) {
+      const geometry = getLineGeometry(line.id);
+      if (!geometry) return null;
+      const rect = canvas.getBoundingClientRect();
+      const clickPoint = {
+        x: (event.clientX - rect.left) / scale,
+        y: (event.clientY - rect.top) / scale,
+      };
+      let best = null;
+      geometry.points.forEach((point, index) => {
+        if (index === geometry.points.length - 1) return;
+        const next = geometry.points[index + 1];
+        const snapped = nearestPointOnSegment(clickPoint, point, next);
+        const distance = Math.hypot(clickPoint.x - snapped.x, clickPoint.y - snapped.y);
+        if (!best || distance < best.distance) {
+          best = { segmentIndex: index, t: segmentT(snapped, point, next), snapped, distance };
+        }
+      });
+      if (!best) return null;
+      return { kind: 'line', lineId: line.id, segmentIndex: best.segmentIndex, t: best.t };
+    }
+
+    function handleLineTargetLine(line, event) {
+      const target = getLineAttachTarget(line, event);
+      if (!target) return;
+      if (!pendingLineStart) {
+        pendingLineStart = target;
+        setLineMode(true);
+        modeState.textContent = 'Chọn điểm kết thúc line';
+        return;
+      }
+      createLine(pendingLineStart, target);
+    }
+
+    image.addEventListener('load', fitInitial);
+    window.addEventListener('resize', () => {
+      if (scale === minScale) {
+        resetView();
+      } else {
+        setBaseSize();
+        applyTransform();
+      }
+      renderScene();
+    });
+
+    window.addEventListener('wheel', (event) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomAt(scale * delta, event.clientX, event.clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mousedown', (event) => {
+      if (event.button !== 1 || scale <= minScale) return;
+      if (event.target.closest('.toolbox') || event.target.closest('.topbar')) return;
+      event.preventDefault();
+      isPanning = true;
+      startMouseX = event.clientX;
+      startMouseY = event.clientY;
+      startPanX = panX;
+      startPanY = panY;
+      document.body.classList.add('is-panning');
+    });
+
+    window.addEventListener('mousemove', (event) => {
+      if (isDraggingBox) return void moveActiveBox(event);
+      if (isResizingBox) return void resizeActiveBox(event);
+      if (!isPanning) return;
+      panX = startPanX + (event.clientX - startMouseX);
+      panY = startPanY + (event.clientY - startMouseY);
+      applyTransform();
+    });
+
+    function stopPan() {
+      isPanning = false;
+      document.body.classList.remove('is-panning');
+    }
+
+    window.addEventListener('mouseup', () => {
+      stopPan();
+      stopBoxInteractions();
+    });
+    window.addEventListener('blur', () => {
+      stopPan();
+      stopBoxInteractions();
+    });
+
+    zoomInBtn.addEventListener('click', () => zoomAt(scale * 1.2, window.innerWidth / 2, window.innerHeight / 2));
+    zoomOutBtn.addEventListener('click', () => zoomAt(scale / 1.2, window.innerWidth / 2, window.innerHeight / 2));
+    zoomResetBtn.addEventListener('click', resetView);
+
+    loginBtn.addEventListener('click', openModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+
+    submitBtn.addEventListener('click', () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      if (username === USERNAME && password === PASSWORD) {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+        renderAuth();
+        toolbox.classList.add('open');
+        miniToolbox.classList.remove('show');
+        closeModal();
+        return;
+      }
+      errorEl.textContent = 'Sai tài khoản hoặc mật khẩu.';
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      sessionStorage.removeItem(AUTH_KEY);
+      toolbox.classList.remove('open');
+      miniToolbox.classList.remove('show');
+      cancelLineMode();
+      renderAuth();
+    });
+
+    collapseToolboxBtn.addEventListener('click', () => {
+      toolbox.classList.remove('open');
+      miniToolbox.classList.add('show');
+    });
+    openToolboxBtn.addEventListener('click', () => {
+      toolbox.classList.add('open');
+      miniToolbox.classList.remove('show');
+    });
+
+    saveBtn.addEventListener('click', saveData);
+    addBoxBtn.addEventListener('click', addBox);
+    copyBoxBtn.addEventListener('click', copySelectedBox);
+    startLineBtn.addEventListener('click', startLineMode);
+    cancelLineBtn.addEventListener('click', cancelLineMode);
+    deleteSelectionBtn.addEventListener('click', deleteSelection);
+
+    boxTextInput.addEventListener('input', () => updateSelectedBox({ text: boxTextInput.value }));
+    boxFontSizeInput.addEventListener('input', () => updateSelectedBox({ fontSize: Math.max(10, Number(boxFontSizeInput.value) || 10) }));
+    boxBgInput.addEventListener('input', () => updateSelectedBox({ background: boxBgInput.value }));
+    boxBorderInput.addEventListener('input', () => updateSelectedBox({ borderColor: boxBorderInput.value }));
+    boxTextColorInput.addEventListener('input', () => updateSelectedBox({ textColor: boxTextColorInput.value }));
+    boxBorderWidthInput.addEventListener('input', () => updateSelectedBox({ borderWidth: Math.max(0, Number(boxBorderWidthInput.value) || 0) }));
+    lineColorInput.addEventListener('input', () => updateSelectedLine({ color: lineColorInput.value }));
+    lineWidthInput.addEventListener('input', () => updateSelectedLine({ width: Math.max(1, Number(lineWidthInput.value) || 1) }));
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay || event.target === linesSvg) {
+        clearSelection();
+        if (lineMode && pendingLineStart) {
+          const rect = canvas.getBoundingClientRect();
+          createLine(pendingLineStart, { kind: 'point', x: (event.clientX - rect.left) / scale, y: (event.clientY - rect.top) / scale, side: 'right' });
+          return;
+        }
+        renderScene();
+      }
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeModal();
+        cancelLineMode();
+      }
+      if (event.key === 'Enter' && modal.classList.contains('open')) submitBtn.click();
+      if (event.key === '+' || event.key === '=') zoomAt(scale * 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      if (event.key === '-') zoomAt(scale / 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      if (event.key === '0') resetView();
+      if (!isLoggedIn()) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        saveData();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undoState();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        copySelectedBox();
+      }
+      if (event.key === 'Delete') {
+        event.preventDefault();
+        deleteSelection();
+      }
+    });
+
+    loadData();
+    renderAuth();
+    renderScene();
+    if (image.complete) fitInitial();
+  </script>
+</body>
+</html>
