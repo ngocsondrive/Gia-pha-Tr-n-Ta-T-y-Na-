@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gia Pha Tran Ta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --text: #4a2b12;
+      --accent: #9f5d1f;
+      --panel: rgba(255,248,235,0.74);
+      --line: rgba(106,58,26,0.18);
+      --shadow: 0 24px 60px rgba(95,54,23,0.22);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Be Vietnam Pro", sans-serif;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(247,231,203,0.5), rgba(240,220,188,0.72)),
+        url("gh-background.jpg") center top / cover no-repeat fixed;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .panel {
+      width: min(900px, 100%);
+      padding: 40px 32px;
+      border-radius: 28px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(2.2rem, 6vw, 4.8rem);
+      line-height: 0.95;
+    }
+    p {
+      margin: 0 auto;
+      max-width: 640px;
+      line-height: 1.7;
+      font-size: 1.02rem;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 24px;
+      padding: 14px 22px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      box-shadow: 0 18px 36px rgba(159,93,31,0.25);
+    }
+    @media (max-width: 600px) {
+      .panel { padding: 28px 20px; border-radius: 20px; }
+      p { font-size: 0.96rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <p class="eyebrow">GitHub Pages</p>
+    <h1>Trang web moi voi nen anh rong vang</h1>
+    <p>
+      Day la duong dan web moi tren GitHub cua ban. Anh ban vua gui da duoc dat lam background
+      toan trang de lam khung cho giao dien gia pha hoac landing page.
+    </p>
+    <a class="button" href="../">Ve trang goc</a>
+  </main>
+</body>
+</html>
