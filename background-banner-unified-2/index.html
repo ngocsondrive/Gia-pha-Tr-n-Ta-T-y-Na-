@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tran Ta Tay Na Unified 2</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+    .mobile-shell {
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+      transform: translateX(-50%);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(255, 248, 237, 0.94);
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
+      backdrop-filter: blur(6px);
+    }
+    .mobile-shell.show { display: flex; }
+    .mobile-btn,
+    .mobile-zoom {
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      background: #fffaf0;
+      color: #6b3d16;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      height: 30px;
+    }
+    .mobile-btn {
+      min-width: 30px;
+      padding: 0 10px;
+    }
+    .mobile-zoom {
+      min-width: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+    }
+    .mobile-hint {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="../background-banner-editor-7/"></iframe>
+  <div id="mobileHint" class="mobile-hint"></div>
+  <div id="mobileShell" class="mobile-shell">
+    <button id="zoomOutBtn" class="mobile-btn" type="button">-</button>
+    <button id="zoomResetBtn" class="mobile-zoom" type="button">100%</button>
+    <button id="zoomInBtn" class="mobile-btn" type="button">+</button>
+  </div>
+  <script>
+    const frame = document.getElementById('appFrame');
+    const mobileShell = document.getElementById('mobileShell');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    function isMobileMode() {
+      return window.matchMedia('(max-width: 900px)').matches || window.matchMedia('(pointer: coarse)').matches;
+    }
+
+    function injectBaseStyles(doc) {
+      if (doc.getElementById('unified-mobile-style')) return;
+      const style = doc.createElement('style');
+      style.id = 'unified-mobile-style';
+      style.textContent = `
+        .hint { display: none !important; }
+        @media (max-width: 900px), (pointer: coarse) {
+          .banner {
+            display: block !important;
+            width: clamp(54px, 13vw, 88px) !important;
+            top: 8px !important;
+          }
+          .banner-left {
+            left: 2px !important;
+            clip-path: inset(0 12% 0 13%) !important;
+          }
+          .banner-right {
+            right: 2px !important;
+            clip-path: inset(0 13% 0 12%) !important;
+          }
+          .topbar {
+            top: 6px !important;
+            right: 6px !important;
+            gap: 4px !important;
+            max-width: calc(100vw - 12px) !important;
+          }
+          .auth-btn,
+          .zoom-btn,
+          .tool-btn {
+            height: 28px !important;
+            padding: 0 10px !important;
+            font-size: 11px !important;
+          }
+          .status,
+          .save-state,
+          .mode-pill {
+            height: 28px !important;
+            padding: 0 8px !important;
+            font-size: 11px !important;
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function patchApp() {
+      const win = frame.contentWindow;
+      const doc = win && win.document;
+      if (!win || !doc) return;
+      injectBaseStyles(doc);
+      win.eval(`
+        if (!window.__unifiedModePatch2) {
+          window.__unifiedModePatch2 = true;
+
+          function setViewerLikeMode(active) {
+            const topbar = document.querySelector('.topbar');
+            const toolbox = document.getElementById('toolbox');
+            const miniToolbox = document.getElementById('miniToolbox');
+            const hint = document.querySelector('.hint');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const status = document.getElementById('status');
+            const saveState = document.getElementById('saveState');
+            if (topbar) topbar.style.display = active ? 'none' : 'flex';
+            if (toolbox) toolbox.classList.remove('open');
+            if (toolbox) toolbox.style.display = active ? 'none' : '';
+            if (miniToolbox) miniToolbox.classList.remove('show');
+            if (miniToolbox) miniToolbox.style.display = active ? 'none' : '';
+            if (hint) hint.style.display = 'none';
+            if (status) status.style.display = active ? 'none' : status.style.display;
+            if (saveState) saveState.style.display = active ? 'none' : saveState.style.display;
+            if (loginBtn) loginBtn.style.display = active ? 'none' : '';
+            if (logoutBtn) logoutBtn.style.display = active ? 'none' : (logoutBtn.hidden ? 'none' : '');
+            document.body.style.touchAction = active ? 'none' : '';
+            if (stage) stage.style.overflow = active ? 'hidden' : 'auto';
+            overlay.querySelectorAll('.box').forEach((box) => {
+              box.style.pointerEvents = active ? 'none' : '';
+            });
+            linesSvg.querySelectorAll('.line-hit').forEach((hit) => {
+              hit.style.pointerEvents = active ? 'none' : '';
+            });
+            if (active) {
+              lineMode = false;
+              pendingLineStart = null;
+              selectedBoxId = null;
+              selectedLineId = null;
+              renderScene();
+            }
+          }
+
+          function getTouchDistance(a, b) {
+            return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+          }
+
+          function getTouchCenter(a, b) {
+            return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+          }
+
+          let touchState = null;
+
+          window.__setUnifiedMobileMode = function(active) {
+            setViewerLikeMode(active);
+            if (!active) {
+              touchState = null;
+              return;
+            }
+          };
+
+          if (!window.__touchPatched2) {
+            window.__touchPatched2 = true;
+            window.addEventListener('touchstart', (event) => {
+              if (!window.__isUnifiedMobileMode) return;
+              if (event.touches.length === 1) {
+                touchState = {
+                  type: 'pan',
+                  startX: event.touches[0].clientX,
+                  startY: event.touches[0].clientY,
+                  basePanX: panX,
+                  basePanY: panY,
+                };
+              } else if (event.touches.length === 2) {
+                const center = getTouchCenter(event.touches[0], event.touches[1]);
+                touchState = {
+                  type: 'pinch',
+                  baseScale: scale,
+                  distance: getTouchDistance(event.touches[0], event.touches[1]),
+                  centerX: center.x,
+                  centerY: center.y,
+                  basePanX: panX,
+                  basePanY: panY,
+                };
+              }
+            }, { passive: false });
+
+            window.addEventListener('touchmove', (event) => {
+              if (!window.__isUnifiedMobileMode || !touchState) return;
+              event.preventDefault();
+              if (touchState.type === 'pan' && event.touches.length === 1) {
+                panX = touchState.basePanX + (event.touches[0].clientX - touchState.startX);
+                panY = touchState.basePanY + (event.touches[0].clientY - touchState.startY);
+                applyTransform();
+              } else if (touchState.type === 'pinch' && event.touches.length === 2) {
+                panX = touchState.basePanX;
+                panY = touchState.basePanY;
+                scale = touchState.baseScale;
+                const center = getTouchCenter(event.touches[0], event.touches[1]);
+                const nextScale = touchState.baseScale * (getTouchDistance(event.touches[0], event.touches[1]) / touchState.distance);
+                zoomAt(nextScale, center.x, center.y);
+              }
+            }, { passive: false });
+
+            window.addEventListener('touchend', () => {
+              if (!window.__isUnifiedMobileMode) return;
+              touchState = null;
+            });
+          }
+        }
+      `);
+      applyMode();
+    }
+
+    function applyMode() {
+      const win = frame.contentWindow;
+      const doc = win && win.document;
+      if (!win || !doc || !win.__setUnifiedMobileMode) return;
+      injectBaseStyles(doc);
+      const mobile = isMobileMode();
+      win.__isUnifiedMobileMode = mobile;
+      win.__setUnifiedMobileMode(mobile);
+      mobileShell.classList.toggle('show', mobile);
+      if (mobile) {
+        zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+      }
+    }
+
+    frame.addEventListener('load', patchApp);
+    window.addEventListener('resize', applyMode);
+
+    zoomInBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.zoomAt(win.scale * 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.zoomAt(win.scale / 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.resetView();
+      zoomResetBtn.textContent = '100%';
+    });
+  </script>
+</body>
+</html>
