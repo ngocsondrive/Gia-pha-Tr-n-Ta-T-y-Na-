@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Background Scroll Zoom</title>
+  <style>
+    :root {
+      --accent: #8b531f;
+      --accent-dark: #6b3d16;
+      --panel: rgba(255, 248, 237, 0.94);
+      --line: rgba(112, 69, 31, 0.18);
+      --shadow: 0 16px 36px rgba(86, 48, 18, 0.16);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body.is-panning {
+      cursor: grab;
+      user-select: none;
+    }
+    .viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      cursor: default;
+    }
+    .canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: top left;
+      will-change: transform;
+    }
+    .canvas img {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      -webkit-user-drag: none;
+      user-select: none;
+    }
+    .topbar {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: calc(100vw - 24px);
+    }
+    .auth-btn,
+    .zoom-btn {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--accent-dark);
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+    .auth-btn:hover,
+    .zoom-btn:hover {
+      background: #fff;
+    }
+    .status {
+      display: none;
+      align-items: center;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(107, 61, 22, 0.9);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: var(--shadow);
+    }
+    .hint {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 20;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 248, 237, 0.92);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(41, 22, 9, 0.28);
+      z-index: 30;
+      padding: 16px;
+    }
+    .modal.open {
+      display: flex;
+    }
+    .card {
+      width: min(360px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(53, 28, 11, 0.22);
+      padding: 18px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--accent-dark);
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5d432f;
+    }
+    .field input {
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 0 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fffdf9;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .secondary-btn,
+    .primary-btn {
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .secondary-btn {
+      background: #fff;
+      color: #6a4a31;
+    }
+    .primary-btn {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+    }
+    .error {
+      min-height: 18px;
+      margin-top: 8px;
+      color: #b42318;
+      font-size: 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewport" id="viewport">
+    <div class="canvas" id="canvas">
+      <img id="mainImage" src="../12%20(2).png" alt="Background 12 (2)">
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div id="status" class="status">Đang ở chế độ chỉnh sửa</div>
+    <button id="zoomOutBtn" class="zoom-btn" type="button">-</button>
+    <button id="zoomResetBtn" class="zoom-btn" type="button">100%</button>
+    <button id="zoomInBtn" class="zoom-btn" type="button">+</button>
+    <button id="loginBtn" class="auth-btn" type="button">Đăng nhập</button>
+    <button id="logoutBtn" class="auth-btn" type="button" hidden>Đăng xuất</button>
+  </div>
+
+  <div class="hint">Lăn chuột để phóng to. Giữ chuột giữa để kéo. Không thu nhỏ dưới 100%.</div>
+
+  <div id="loginModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h2>Đăng nhập chỉnh sửa</h2>
+      <div class="field">
+        <label for="username">Tài khoản</label>
+        <input id="username" type="text" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">Mật khẩu</label>
+        <input id="password" type="password" autocomplete="current-password">
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" class="secondary-btn" type="button">Hủy</button>
+        <button id="submitBtn" class="primary-btn" type="button">Vào chỉnh sửa</button>
+      </div>
+      <div id="error" class="error"></div>
+    </div>
+  </div>
+
+  <script>
+    const AUTH_KEY = 'background-scroll-admin-auth';
+    const USERNAME = 'admin';
+    const PASSWORD = '123456';
+
+    const viewport = document.getElementById('viewport');
+    const canvas = document.getElementById('canvas');
+    const image = document.getElementById('mainImage');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const statusEl = document.getElementById('status');
+    const modal = document.getElementById('loginModal');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const errorEl = document.getElementById('error');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    let scale = 1;
+    let minScale = 1;
+    let maxScale = 4;
+    let offsetX = 0;
+    let offsetY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let startOffsetX = 0;
+    let startOffsetY = 0;
+    let imageWidth = 0;
+    let imageHeight = 0;
+
+    function renderAuth() {
+      const loggedIn = sessionStorage.getItem(AUTH_KEY) === 'true';
+      loginBtn.hidden = loggedIn;
+      logoutBtn.hidden = !loggedIn;
+      statusEl.style.display = loggedIn ? 'flex' : 'none';
+    }
+
+    function openModal() {
+      errorEl.textContent = '';
+      usernameInput.value = '';
+      passwordInput.value = '';
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => usernameInput.focus(), 0);
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function clampOffsets() {
+      const scaledWidth = imageWidth * scale;
+      const scaledHeight = imageHeight * scale;
+      const minX = Math.min(0, viewport.clientWidth - scaledWidth);
+      const minY = Math.min(0, viewport.clientHeight - scaledHeight);
+      const maxX = 0;
+      const maxY = 0;
+
+      offsetX = Math.min(maxX, Math.max(minX, offsetX));
+      offsetY = Math.min(maxY, Math.max(minY, offsetY));
+    }
+
+    function applyTransform() {
+      clampOffsets();
+      canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      zoomResetBtn.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function fitInitial() {
+      imageWidth = image.naturalWidth;
+      imageHeight = image.naturalHeight;
+      minScale = 1;
+      scale = Math.max(scale, minScale);
+      offsetX = 0;
+      offsetY = 0;
+      applyTransform();
+    }
+
+    function zoomAt(nextScale, clientX, clientY) {
+      const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
+      if (boundedScale === scale) return;
+
+      const rect = viewport.getBoundingClientRect();
+      const pointX = clientX - rect.left;
+      const pointY = clientY - rect.top;
+      const imageX = (pointX - offsetX) / scale;
+      const imageY = (pointY - offsetY) / scale;
+
+      scale = boundedScale;
+      offsetX = pointX - imageX * scale;
+      offsetY = pointY - imageY * scale;
+      applyTransform();
+    }
+
+    image.addEventListener('load', fitInitial);
+    window.addEventListener('resize', applyTransform);
+
+    viewport.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const delta = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+      zoomAt(scale * delta, event.clientX, event.clientY);
+    }, { passive: false });
+
+    viewport.addEventListener('mousedown', (event) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      isPanning = true;
+      panStartX = event.clientX;
+      panStartY = event.clientY;
+      startOffsetX = offsetX;
+      startOffsetY = offsetY;
+      document.body.classList.add('is-panning');
+    });
+
+    window.addEventListener('mousemove', (event) => {
+      if (!isPanning) return;
+      offsetX = startOffsetX + (event.clientX - panStartX);
+      offsetY = startOffsetY + (event.clientY - panStartY);
+      applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isPanning = false;
+      document.body.classList.remove('is-panning');
+    });
+
+    window.addEventListener('blur', () => {
+      isPanning = false;
+      document.body.classList.remove('is-panning');
+    });
+
+    zoomInBtn.addEventListener('click', () => {
+      zoomAt(scale * 1.2, viewport.clientWidth / 2, viewport.clientHeight / 2);
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      zoomAt(scale / 1.2, viewport.clientWidth / 2, viewport.clientHeight / 2);
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      scale = minScale;
+      offsetX = 0;
+      offsetY = 0;
+      applyTransform();
+    });
+
+    loginBtn.addEventListener('click', openModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+
+    submitBtn.addEventListener('click', () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if (username === USERNAME && password === PASSWORD) {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+        renderAuth();
+        closeModal();
+        return;
+      }
+
+      errorEl.textContent = 'Sai tài khoản hoặc mật khẩu.';
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      sessionStorage.removeItem(AUTH_KEY);
+      renderAuth();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeModal();
+      if (event.key === 'Enter' && modal.classList.contains('open')) {
+        submitBtn.click();
+      }
+      if (event.key === '+' || event.key === '=') {
+        zoomAt(scale * 1.2, viewport.clientWidth / 2, viewport.clientHeight / 2);
+      }
+      if (event.key === '-') {
+        zoomAt(scale / 1.2, viewport.clientWidth / 2, viewport.clientHeight / 2);
+      }
+      if (event.key === '0') {
+        scale = minScale;
+        offsetX = 0;
+        offsetY = 0;
+        applyTransform();
+      }
+    });
+
+    renderAuth();
+    if (image.complete) fitInitial();
+  </script>
+</body>
+</html>
