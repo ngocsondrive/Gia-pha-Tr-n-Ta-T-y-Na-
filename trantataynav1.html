@@ -29,43 +29,19 @@
       border: 0;
       background: transparent;
     }
-    .mobile-shell {
-      position: absolute;
-      left: 50%;
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-      transform: translateX(-50%);
-      z-index: 100;
-      display: none;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 8px;
-      border-radius: 999px;
-      background: rgba(255, 248, 237, 0.94);
-      border: 1px solid rgba(112, 69, 31, 0.18);
-      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
-      backdrop-filter: blur(6px);
-    }
-    .mobile-shell.show { display: flex; }
-    .mobile-btn {
-      border: 1px solid rgba(112, 69, 31, 0.18);
-      background: #fffaf0;
-      color: #6b3d16;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      height: 30px;
-      min-width: 30px;
-      padding: 0 10px;
+    .mobile-shell,
+    .mobile-shell.show {
+      display: none !important;
     }
     .mobile-credit {
       position: absolute;
       right: 10px;
       bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
       z-index: 110;
-      max-width: min(62vw, 360px);
+      max-width: min(68vw, 420px);
       padding: 5px 8px;
       border-radius: 10px;
-      background: rgba(255, 248, 237, 0.78);
+      background: rgba(255, 248, 237, 0.82);
       color: #6b3d16;
       font-size: 10px;
       line-height: 1.35;
@@ -86,24 +62,13 @@
         transform-origin: center center;
       }
     }
-    @media (max-width: 900px), (pointer: coarse) {
-      .mobile-shell {
-        display: none !important;
-      }
-      .mobile-credit {
-        display: block;
-      }
-    }
   </style>
 </head>
 <body>
   <div id="frameStage" class="frame-stage">
     <iframe id="appFrame" src="./background-banner-editor-7/"></iframe>
-    <div id="mobileShell" class="mobile-shell">
-      <button id="zoomOutBtn" class="mobile-btn" type="button">-</button>
-      <button id="zoomInBtn" class="mobile-btn" type="button">+</button>
-    </div>
-    <div class="mobile-credit">Tran Son - Tran Ta Tay Na - Chi Ba - Tran Loi - Nhanh Hai</div>
+    <div id="mobileShell" class="mobile-shell"></div>
+    <div class="mobile-credit">Trần Sơn - Trần Tả Tây Nạ - Chi Ba - Trần Lợi - Nhánh Hai</div>
   </div>
   <script>
     const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
@@ -114,9 +79,6 @@
 
     const frame = document.getElementById('appFrame');
     const frameStage = document.getElementById('frameStage');
-    const mobileShell = document.getElementById('mobileShell');
-    const zoomInBtn = document.getElementById('zoomInBtn');
-    const zoomOutBtn = document.getElementById('zoomOutBtn');
 
     let editorWindowRef = null;
 
@@ -146,6 +108,20 @@
           cursor: grab;
         }
         .toolbox.dragging .toolbox-drag-btn { cursor: grabbing; }
+        .stage {
+          height: 100vh !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain !important;
+        }
+        @media (min-width: 901px) and (pointer: fine) {
+          html, body {
+            overflow: hidden !important;
+          }
+          .topbar .zoom-btn {
+            display: inline-flex !important;
+          }
+        }
         @media (max-width: 900px), (pointer: coarse) {
           html, body {
             overscroll-behavior: none !important;
@@ -165,13 +141,18 @@
             clip-path: inset(0 13% 0 12%) !important;
           }
           .topbar {
-            top: 6px !important;
-            right: 6px !important;
-            gap: 4px !important;
-            max-width: calc(100vw - 12px) !important;
+            display: none !important;
+          }
+          .topbar .zoom-btn,
+          .zoom-btn,
+          #zoomInBtn,
+          #zoomOutBtn,
+          #zoomResetBtn {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
           }
           .auth-btn,
-          .zoom-btn,
           .tool-btn,
           .toolbox-drag-btn {
             height: 28px !important;
@@ -269,8 +250,8 @@
 
     function patchEditor(editorWin) {
       editorWin.eval(`
-        if (!window.__desktopEditMobileViewPatchV9) {
-          window.__desktopEditMobileViewPatchV9 = true;
+        if (!window.__desktopEditMobileViewPatchV10) {
+          window.__desktopEditMobileViewPatchV10 = true;
           const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
           let isUnifiedMobileViewer = false;
           let toolboxDragState = null;
@@ -519,17 +500,21 @@
           }
 
           function fitDesktopClassic() {
-            stage.style.overflow = 'auto';
+            stage.style.height = window.innerHeight + 'px';
             stage.style.overflowX = 'hidden';
             stage.style.overflowY = 'auto';
-            document.body.style.overflow = 'auto';
-            classicSetBaseSize();
+            stage.style.overscrollBehavior = 'contain';
+            document.body.style.overflow = 'hidden';
+            if (document.documentElement) document.documentElement.style.overflow = 'hidden';
+            const result = classicSetBaseSize();
             normalizeSceneForDisplay(getDisplaySpace());
             scale = minScale;
             panX = 0;
             panY = 0;
             classicApplyTransform();
+            stage.scrollTop = Math.max(0, Math.min(stage.scrollTop, stage.scrollHeight - stage.clientHeight));
             renderScene();
+            return result;
           }
 
           function setViewerLikeMode(active) {
@@ -684,7 +669,6 @@
     function applyMode() {
       const mobile = isMobileMode();
       frameStage.classList.toggle('mobile-landscape', isPortraitMobile());
-      mobileShell.classList.toggle('show', mobile);
       if (!editorWindowRef) return;
       injectBaseStyles(editorWindowRef.document);
       if (editorWindowRef.__setUnifiedMobileMode) {
@@ -720,20 +704,6 @@
     frame.addEventListener('load', boot);
     window.addEventListener('resize', applyMode);
     window.addEventListener('orientationchange', () => setTimeout(applyMode, 150));
-
-    zoomInBtn.addEventListener('click', () => {
-      const win = editorWindowRef;
-      if (!win || !win.zoomAt) return;
-      const viewport = window.__mobileViewGetViewportV8();
-      win.zoomAt(win.scale * 1.2, viewport.width / 2, viewport.height / 2);
-    });
-
-    zoomOutBtn.addEventListener('click', () => {
-      const win = editorWindowRef;
-      if (!win || !win.zoomAt) return;
-      const viewport = window.__mobileViewGetViewportV8();
-      win.zoomAt(win.scale / 1.2, viewport.width / 2, viewport.height / 2);
-    });
   </script>
 </body>
 </html>
