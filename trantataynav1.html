@@ -243,62 +243,112 @@
 
     function patchEditor(editorWin) {
       editorWin.eval(`
-        if (!window.__desktopEditMobileViewPatchV8) {
-          window.__desktopEditMobileViewPatchV8 = true;
+        if (!window.__desktopEditMobileViewPatchV9) {
+          window.__desktopEditMobileViewPatchV9 = true;
           const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
           let isUnifiedMobileViewer = false;
           let toolboxDragState = null;
           let coordInputs = null;
           let mobileDefaultScale = null;
           let mobileTouchState = null;
-          let runtimeCoordSpace = null;
+          let runtimeDisplaySpace = null;
           const classicSetBaseSize = setBaseSize;
           const classicApplyTransform = applyTransform;
           const classicZoomAt = zoomAt;
           const classicLoadData = loadData;
+          const classicResetView = resetView;
+          const classicFitInitial = fitInitial;
 
-          function getCurrentCoordSpace() {
-            const imageWidth = image.naturalWidth || image.width || window.innerWidth;
-            const imageHeight = image.naturalHeight || image.height || window.innerHeight;
-            return { width: imageWidth, height: imageHeight };
+          function getImageSpace() {
+            const width = image.naturalWidth || image.width || window.innerWidth;
+            const height = image.naturalHeight || image.height || window.innerHeight;
+            return { width, height };
+          }
+
+          function getDisplaySpace() {
+            if (isUnifiedMobileViewer) return getImageSpace();
+            return {
+              width: window.innerWidth,
+              height: image.offsetHeight || image.naturalHeight || window.innerHeight,
+            };
+          }
+
+          function getSafeSpace(space, fallback) {
+            if (space && Number(space.width) > 0 && Number(space.height) > 0) {
+              return { width: Number(space.width), height: Number(space.height) };
+            }
+            return fallback;
           }
 
           function scalePoint(point, scaleX, scaleY) {
             return { ...point, x: (point.x || 0) * scaleX, y: (point.y || 0) * scaleY };
           }
 
-          function scalePayloadToRuntime(payload) {
-            const clean = payload || { boxes: [], lines: [], meta: {} };
-            const source = clean.meta && clean.meta.coordSpace && clean.meta.coordSpace.width && clean.meta.coordSpace.height
-              ? clean.meta.coordSpace
-              : getCurrentCoordSpace();
-            const target = getCurrentCoordSpace();
-            runtimeCoordSpace = target;
-            const scaleX = target.width / source.width;
-            const scaleY = target.height / source.height;
-            boxes = (clean.boxes || []).map((box) => ({
-              ...box,
-              x: box.x * scaleX,
-              y: box.y * scaleY,
-              width: box.width * scaleX,
-              height: box.height * scaleY,
-              fontSize: box.fontSize * Math.min(scaleX, scaleY),
-              borderWidth: Math.max(1, box.borderWidth * Math.min(scaleX, scaleY)),
-            }));
-            lines = (clean.lines || []).map((line) => ({
-              ...line,
-              start: line.start && line.start.kind === 'point' ? scalePoint(line.start, scaleX, scaleY) : line.start,
-              end: line.end && line.end.kind === 'point' ? scalePoint(line.end, scaleX, scaleY) : line.end,
-              width: Math.max(1, line.width * Math.min(scaleX, scaleY)),
-            }));
+          function scaleAnchor(anchor, scaleX, scaleY) {
+            if (!anchor) return anchor;
+            if (anchor.kind === 'point') return scalePoint(anchor, scaleX, scaleY);
+            return { ...anchor };
           }
 
-          function createPersistedPayload() {
-            const coordSpace = runtimeCoordSpace || getCurrentCoordSpace();
+          function scaleState(state, sourceSpace, targetSpace) {
+            const source = getSafeSpace(sourceSpace, getImageSpace());
+            const target = getSafeSpace(targetSpace, source);
+            const scaleX = target.width / source.width;
+            const scaleY = target.height / source.height;
+            return {
+              boxes: (state.boxes || []).map((box) => ({
+                ...box,
+                x: box.x * scaleX,
+                y: box.y * scaleY,
+                width: box.width * scaleX,
+                height: box.height * scaleY,
+                fontSize: box.fontSize * Math.min(scaleX, scaleY),
+                borderWidth: Math.max(1, box.borderWidth * Math.min(scaleX, scaleY)),
+              })),
+              lines: (state.lines || []).map((line) => ({
+                ...line,
+                start: scaleAnchor(line.start, scaleX, scaleY),
+                end: scaleAnchor(line.end, scaleX, scaleY),
+                width: Math.max(1, line.width * Math.min(scaleX, scaleY)),
+              })),
+            };
+          }
+
+          function exportSceneState() {
             return {
               boxes: boxes.map((box) => ({ ...box })),
               lines: lines.map((line) => ({ ...line })),
-              meta: { coordSpace },
+            };
+          }
+
+          function applyStateToScene(state, sourceSpace, targetSpace) {
+            const scaled = scaleState(state, sourceSpace, targetSpace);
+            boxes = scaled.boxes;
+            lines = scaled.lines;
+            runtimeDisplaySpace = getSafeSpace(targetSpace, getDisplaySpace());
+          }
+
+          function normalizeSceneForDisplay(nextDisplaySpace) {
+            const target = getSafeSpace(nextDisplaySpace, getDisplaySpace());
+            const source = getSafeSpace(runtimeDisplaySpace, target);
+            if (Math.abs(source.width - target.width) < 0.5 && Math.abs(source.height - target.height) < 0.5) {
+              runtimeDisplaySpace = target;
+              return;
+            }
+            const scaled = scaleState(exportSceneState(), source, target);
+            boxes = scaled.boxes;
+            lines = scaled.lines;
+            runtimeDisplaySpace = target;
+          }
+
+          function createPersistedPayload() {
+            const displaySpace = getSafeSpace(runtimeDisplaySpace, getDisplaySpace());
+            const imageSpace = getImageSpace();
+            const scaled = scaleState(exportSceneState(), displaySpace, imageSpace);
+            return {
+              boxes: scaled.boxes,
+              lines: scaled.lines,
+              meta: { coordSpace: imageSpace },
             };
           }
 
@@ -333,7 +383,12 @@
             header.insertBefore(dragBtn, header.firstChild);
             dragBtn.addEventListener('pointerdown', (event) => {
               if (isUnifiedMobileViewer) return;
-              toolboxDragState = { startX: event.clientX, startY: event.clientY, originLeft: toolbox.getBoundingClientRect().left, originTop: toolbox.getBoundingClientRect().top };
+              toolboxDragState = {
+                startX: event.clientX,
+                startY: event.clientY,
+                originLeft: toolbox.getBoundingClientRect().left,
+                originTop: toolbox.getBoundingClientRect().top,
+              };
               toolbox.classList.add('dragging');
               toolbox.style.left = toolboxDragState.originLeft + 'px';
               toolbox.style.top = toolboxDragState.originTop + 'px';
@@ -418,15 +473,14 @@
           }
 
           function fitMobileView() {
-            const imageWidth = image.naturalWidth || image.width || window.innerWidth;
-            const imageHeight = image.naturalHeight || image.height || window.innerHeight;
-            canvas.style.width = imageWidth + 'px';
-            overlay.style.width = imageWidth + 'px';
-            overlay.style.height = imageHeight + 'px';
-            linesSvg.setAttribute('viewBox', '0 0 ' + imageWidth + ' ' + imageHeight);
-            runtimeCoordSpace = { width: imageWidth, height: imageHeight };
+            const imageSpace = getImageSpace();
+            canvas.style.width = imageSpace.width + 'px';
+            overlay.style.width = imageSpace.width + 'px';
+            overlay.style.height = imageSpace.height + 'px';
+            linesSvg.setAttribute('viewBox', '0 0 ' + imageSpace.width + ' ' + imageSpace.height);
+            normalizeSceneForDisplay(imageSpace);
             const viewport = window.top.__mobileViewGetViewportV8 ? window.top.__mobileViewGetViewportV8() : { width: window.innerWidth, height: window.innerHeight };
-            const baseScale = viewport.width / imageWidth;
+            const baseScale = viewport.width / imageSpace.width;
             minScale = baseScale;
             maxScale = Math.max(baseScale * 4, 4);
             scale = baseScale;
@@ -437,6 +491,7 @@
             stage.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
             classicApplyTransform();
+            renderScene();
           }
 
           function fitDesktopClassic() {
@@ -445,11 +500,12 @@
             stage.style.overflowY = 'auto';
             document.body.style.overflow = 'auto';
             classicSetBaseSize();
-            runtimeCoordSpace = { width: window.innerWidth, height: image.offsetHeight || image.naturalHeight || window.innerHeight };
+            normalizeSceneForDisplay(getDisplaySpace());
             scale = minScale;
             panX = 0;
             panY = 0;
             classicApplyTransform();
+            renderScene();
           }
 
           function setViewerLikeMode(active) {
@@ -504,7 +560,9 @@
 
           setBaseSize = function() {
             if (isUnifiedMobileViewer) return fitMobileView();
-            return classicSetBaseSize();
+            const result = classicSetBaseSize();
+            normalizeSceneForDisplay(getDisplaySpace());
+            return result;
           };
 
           resetView = function() {
@@ -513,13 +571,8 @@
           };
 
           fitInitial = function() {
-            if (isUnifiedMobileViewer) {
-              fitMobileView();
-              renderScene();
-              return;
-            }
-            fitDesktopClassic();
-            renderScene();
+            if (isUnifiedMobileViewer) return fitMobileView();
+            return fitDesktopClassic();
           };
 
           window.__setUnifiedMobileMode = function(active) {
@@ -539,21 +592,25 @@
             try {
               const remote = await window.top.__mobileViewFetchRemoteDocumentV8();
               if (remote) {
-                scalePayloadToRuntime(remote);
+                const cleanRemote = remote || { boxes: [], lines: [], meta: {} };
+                const sourceSpace = getSafeSpace(cleanRemote.meta && cleanRemote.meta.coordSpace, getImageSpace());
+                const targetSpace = getDisplaySpace();
+                applyStateToScene(cleanRemote, sourceSpace, targetSpace);
                 migrateLines();
                 selectedBoxId = null;
                 selectedLineId = null;
                 renderScene();
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanRemote));
                 setDirty(false);
                 setSyncState('Đã tải cloud');
                 if (isUnifiedMobileViewer) fitMobileView(); else fitDesktopClassic();
                 return;
               }
               await classicLoadData();
-              runtimeCoordSpace = getCurrentCoordSpace();
-              const localPayload = createPersistedPayload();
-              if ((boxes && boxes.length) || (lines && lines.length)) {
+              runtimeDisplaySpace = getDisplaySpace();
+              const hasLocalData = (boxes && boxes.length) || (lines && lines.length);
+              if (hasLocalData) {
+                const localPayload = createPersistedPayload();
                 setSyncState('Cloud trống, đang đẩy dữ liệu cũ...');
                 await window.top.__mobileViewSaveRemoteDocumentV8(localPayload);
                 await window.top.__mobileViewVerifyRemoteDocumentV8(localPayload);
@@ -565,7 +622,7 @@
             } catch (error) {
               console.error(error);
               await classicLoadData();
-              runtimeCoordSpace = getCurrentCoordSpace();
+              runtimeDisplaySpace = getDisplaySpace();
               setSyncState('Lỗi cloud, dùng dữ liệu máy này', true);
               if (isUnifiedMobileViewer) fitMobileView(); else fitDesktopClassic();
             }
