@@ -250,8 +250,8 @@
 
     function patchEditor(editorWin) {
       editorWin.eval(`
-        if (!window.__desktopEditMobileViewPatchV10) {
-          window.__desktopEditMobileViewPatchV10 = true;
+        if (!window.__desktopEditMobileViewPatchV11) {
+          window.__desktopEditMobileViewPatchV11 = true;
           const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
           let isUnifiedMobileViewer = false;
           let toolboxDragState = null;
@@ -366,6 +366,14 @@
             saveState.style.borderColor = isError ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
           }
 
+          function resetMobileViewport() {
+            scale = mobileDefaultScale;
+            panX = 0;
+            panY = 0;
+            clampPan();
+            classicApplyTransform();
+          }
+
           function clampPan() {
             const imageWidth = image.naturalWidth || image.width || window.innerWidth;
             const imageHeight = image.naturalHeight || image.height || window.innerHeight;
@@ -469,12 +477,20 @@
                 scale = Math.max(mobileDefaultScale, Math.min(maxScale, mobileTouchState.baseScale * (distance / mobileTouchState.distance)));
                 panX = mobileTouchState.basePanX + (centerX - mobileTouchState.centerX);
                 panY = mobileTouchState.basePanY + (centerY - mobileTouchState.centerY);
-                clampPan();
-                classicApplyTransform();
+                if (scale <= mobileDefaultScale + 0.0001) {
+                  resetMobileViewport();
+                } else {
+                  clampPan();
+                  classicApplyTransform();
+                }
                 event.preventDefault();
               }
             }, { passive: false });
-            window.addEventListener('touchend', () => { if (isUnifiedMobileViewer) mobileTouchState = null; }, { passive: true });
+            window.addEventListener('touchend', () => {
+              if (!isUnifiedMobileViewer) return;
+              if (scale <= mobileDefaultScale + 0.0001) resetMobileViewport();
+              mobileTouchState = null;
+            }, { passive: true });
           }
 
           function fitMobileView() {
@@ -559,11 +575,8 @@
 
           zoomAt = function(nextScale, clientX, clientY) {
             classicZoomAt(nextScale, clientX, clientY);
-            if (isUnifiedMobileViewer && scale < mobileDefaultScale) {
-              scale = mobileDefaultScale;
-              panX = 0;
-              clampPan();
-              classicApplyTransform();
+            if (isUnifiedMobileViewer && scale <= mobileDefaultScale + 0.0001) {
+              resetMobileViewport();
             }
           };
 
