@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tran Ta Tay Na Desktop Edit Mobile View V2</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .frame-stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+    .mobile-shell {
+      position: absolute;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+      transform: translateX(-50%);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(255, 248, 237, 0.94);
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
+      backdrop-filter: blur(6px);
+    }
+    .mobile-shell.show { display: flex; }
+    .mobile-btn,
+    .mobile-zoom {
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      background: #fffaf0;
+      color: #6b3d16;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      height: 30px;
+    }
+    .mobile-btn {
+      min-width: 30px;
+      padding: 0 10px;
+    }
+    .mobile-zoom {
+      min-width: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+    }
+    @media (max-width: 900px) and (orientation: portrait), (pointer: coarse) and (max-aspect-ratio: 9/10) {
+      .frame-stage.mobile-landscape {
+        width: 100vh;
+        height: 100vw;
+        top: 50%;
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%) rotate(90deg);
+        transform-origin: center center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="frameStage" class="frame-stage">
+    <iframe id="appFrame" src="../background-banner-editor-7/"></iframe>
+    <div id="mobileShell" class="mobile-shell">
+      <button id="zoomOutBtn" class="mobile-btn" type="button">-</button>
+      <button id="zoomResetBtn" class="mobile-zoom" type="button">100%</button>
+      <button id="zoomInBtn" class="mobile-btn" type="button">+</button>
+    </div>
+  </div>
+  <script>
+    const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dXNsanRlcWVveXRkY294YWFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDM3MTksImV4cCI6MjA5MDUxOTcxOX0.-6wTksnJflmerln8aajmXS74FH8OXgJBqlNSp4CNPZ0';
+    const TABLE_NAME = 'tree_documents';
+    const DOCUMENT_ID = 'classic-main';
+    const LOCAL_STORAGE_KEY = 'background-banner-editor-3-data';
+
+    const frame = document.getElementById('appFrame');
+    const frameStage = document.getElementById('frameStage');
+    const mobileShell = document.getElementById('mobileShell');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    let editorWindowRef = null;
+
+    function isMobileMode() {
+      return window.matchMedia('(max-width: 900px)').matches || window.matchMedia('(pointer: coarse)').matches;
+    }
+
+    function isPortraitMobile() {
+      return isMobileMode() && window.matchMedia('(orientation: portrait)').matches;
+    }
+
+    function injectBaseStyles(doc) {
+      if (!doc || doc.getElementById('unified-sync-style')) return;
+      const style = doc.createElement('style');
+      style.id = 'unified-sync-style';
+      style.textContent = `
+        .hint { display: none !important; }
+        .toolbox-drag-btn {
+          border: 1px solid rgba(112, 69, 31, 0.18);
+          background: #fffaf0;
+          color: #6b3d16;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: grab;
+        }
+        .toolbox.dragging .toolbox-drag-btn {
+          cursor: grabbing;
+        }
+        @media (max-width: 900px), (pointer: coarse) {
+          .banner {
+            display: block !important;
+            width: clamp(54px, 13vw, 88px) !important;
+            top: 8px !important;
+          }
+          .banner-left {
+            left: 2px !important;
+            clip-path: inset(0 12% 0 13%) !important;
+          }
+          .banner-right {
+            right: 2px !important;
+            clip-path: inset(0 13% 0 12%) !important;
+          }
+          .topbar {
+            top: 6px !important;
+            right: 6px !important;
+            gap: 4px !important;
+            max-width: calc(100vw - 12px) !important;
+          }
+          .auth-btn,
+          .zoom-btn,
+          .tool-btn,
+          .toolbox-drag-btn {
+            height: 28px !important;
+            padding: 0 10px !important;
+            font-size: 11px !important;
+          }
+          .status,
+          .save-state,
+          .mode-pill {
+            height: 28px !important;
+            padding: 0 8px !important;
+            font-size: 11px !important;
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function supabaseHeaders(extra = {}) {
+      return {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        ...extra,
+      };
+    }
+
+    function sanitizeBox(box) {
+      return {
+        id: String(box.id || ''),
+        x: Number(box.x) || 0,
+        y: Number(box.y) || 0,
+        width: Math.max(24, Number(box.width) || 220),
+        height: Math.max(24, Number(box.height) || 96),
+        text: String(box.text || ''),
+        fontSize: Math.max(10, Number(box.fontSize) || 20),
+        background: /^#[0-9a-fA-F]{6}$/.test(box.background) ? box.background : '#fff6d9',
+        borderColor: /^#[0-9a-fA-F]{6}$/.test(box.borderColor) ? box.borderColor : '#8b531f',
+        textColor: /^#[0-9a-fA-F]{6}$/.test(box.textColor) ? box.textColor : '#5b3416',
+        borderWidth: Math.max(0, Number(box.borderWidth) || 2),
+      };
+    }
+
+    function sanitizeAnchor(anchor) {
+      if (anchor && anchor.kind === 'box') {
+        return {
+          kind: 'box',
+          boxId: String(anchor.boxId || ''),
+          side: ['left', 'right', 'top', 'bottom'].includes(anchor.side) ? anchor.side : 'top',
+        };
+      }
+      return {
+        kind: 'point',
+        x: Number(anchor?.x) || 0,
+        y: Number(anchor?.y) || 0,
+        side: ['left', 'right', 'top', 'bottom'].includes(anchor?.side) ? anchor.side : 'right',
+      };
+    }
+
+    function sanitizeLine(line) {
+      return {
+        id: String(line.id || ''),
+        start: sanitizeAnchor(line.start),
+        end: sanitizeAnchor(line.end),
+        color: /^#[0-9a-fA-F]{6}$/.test(line.color) ? line.color : '#8b531f',
+        width: Math.max(1, Number(line.width) || 3),
+      };
+    }
+
+    function sanitizePayload(payload) {
+      return {
+        boxes: Array.isArray(payload?.boxes) ? payload.boxes.map(sanitizeBox) : [],
+        lines: Array.isArray(payload?.lines) ? payload.lines.map(sanitizeLine) : [],
+      };
+    }
+
+    async function fetchRemoteDocument() {
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${encodeURIComponent(DOCUMENT_ID)}&select=data`,
+        { headers: supabaseHeaders() }
+      );
+      if (!response.ok) throw new Error(`Fetch failed: ${response.status} ${await response.text()}`);
+      const rows = await response.json();
+      return rows[0]?.data || null;
+    }
+
+    async function saveRemoteDocument(payload) {
+      const cleanPayload = sanitizePayload(payload);
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
+        method: 'POST',
+        headers: supabaseHeaders({
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal',
+        }),
+        body: JSON.stringify([{ id: DOCUMENT_ID, data: cleanPayload }]),
+      });
+      if (!response.ok) throw new Error(`Save failed: ${response.status} ${await response.text()}`);
+      return cleanPayload;
+    }
+
+    async function verifyRemoteDocument(payload) {
+      const expected = sanitizePayload(payload);
+      const remote = sanitizePayload(await fetchRemoteDocument());
+      if (JSON.stringify(expected) !== JSON.stringify(remote)) {
+        throw new Error('Supabase trả về dữ liệu khác với dữ liệu vừa lưu');
+      }
+    }
+
+    async function findEditorWindow() {
+      let currentWin = frame.contentWindow;
+      for (let depth = 0; depth < 4; depth += 1) {
+        if (!currentWin) throw new Error('Không truy cập được editor');
+        const currentDoc = currentWin.document;
+        injectBaseStyles(currentDoc);
+        if (typeof currentWin.loadData === 'function' && typeof currentWin.saveData === 'function' && typeof currentWin.setDirty === 'function') {
+          return currentWin;
+        }
+        const nestedFrame = currentDoc.getElementById('appFrame');
+        if (!nestedFrame) break;
+        if (!nestedFrame.contentWindow || !nestedFrame.contentDocument || nestedFrame.contentDocument.readyState !== 'complete') {
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Editor tải quá lâu')), 12000);
+            nestedFrame.addEventListener('load', () => {
+              clearTimeout(timer);
+              resolve();
+            }, { once: true });
+          });
+        }
+        currentWin = nestedFrame.contentWindow;
+      }
+      throw new Error('Không tìm thấy editor thật');
+    }
+
+    function patchEditor(editorWin) {
+      editorWin.eval(`
+        if (!window.__desktopEditMobileViewPatchV2) {
+          window.__desktopEditMobileViewPatchV2 = true;
+          const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
+          let isUnifiedMobileViewer = false;
+          let toolboxDragState = null;
+
+          function setSyncState(text, isError = false) {
+            if (!saveState) return;
+            saveState.style.display = 'flex';
+            saveState.textContent = text;
+            saveState.style.background = isError ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
+            saveState.style.color = isError ? '#9a3d1f' : '#1f7a45';
+            saveState.style.borderColor = isError ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
+          }
+
+          function installToolboxDrag() {
+            const toolbox = document.getElementById('toolbox');
+            const header = toolbox && toolbox.querySelector('.toolbox-header');
+            if (!toolbox || !header || header.querySelector('.toolbox-drag-btn')) return;
+            toolbox.style.position = 'fixed';
+            const dragBtn = document.createElement('button');
+            dragBtn.type = 'button';
+            dragBtn.className = 'toolbox-drag-btn';
+            dragBtn.textContent = 'Di chuyen';
+            header.insertBefore(dragBtn, header.firstChild);
+
+            dragBtn.addEventListener('pointerdown', (event) => {
+              if (isUnifiedMobileViewer) return;
+              toolboxDragState = {
+                startX: event.clientX,
+                startY: event.clientY,
+                originLeft: toolbox.getBoundingClientRect().left,
+                originTop: toolbox.getBoundingClientRect().top,
+              };
+              toolbox.classList.add('dragging');
+              toolbox.style.left = toolboxDragState.originLeft + 'px';
+              toolbox.style.top = toolboxDragState.originTop + 'px';
+              toolbox.style.right = 'auto';
+              dragBtn.setPointerCapture(event.pointerId);
+              event.preventDefault();
+            });
+
+            dragBtn.addEventListener('pointermove', (event) => {
+              if (!toolboxDragState) return;
+              const nextLeft = Math.max(8, Math.min(window.innerWidth - toolbox.offsetWidth - 8, toolboxDragState.originLeft + (event.clientX - toolboxDragState.startX)));
+              const nextTop = Math.max(56, Math.min(window.innerHeight - 120, toolboxDragState.originTop + (event.clientY - toolboxDragState.startY)));
+              toolbox.style.left = nextLeft + 'px';
+              toolbox.style.top = nextTop + 'px';
+            });
+
+            function endDrag(event) {
+              if (!toolboxDragState) return;
+              toolboxDragState = null;
+              toolbox.classList.remove('dragging');
+              try { dragBtn.releasePointerCapture(event.pointerId); } catch {}
+            }
+
+            dragBtn.addEventListener('pointerup', endDrag);
+            dragBtn.addEventListener('pointercancel', endDrag);
+          }
+
+          function setViewerLikeMode(active) {
+            isUnifiedMobileViewer = active;
+            const topbar = document.querySelector('.topbar');
+            const toolbox = document.getElementById('toolbox');
+            const miniToolbox = document.getElementById('miniToolbox');
+            const hint = document.querySelector('.hint');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (topbar) topbar.style.display = active ? 'none' : 'flex';
+            if (toolbox) {
+              toolbox.classList.remove('open');
+              toolbox.style.display = active ? 'none' : '';
+            }
+            if (miniToolbox) {
+              miniToolbox.classList.remove('show');
+              miniToolbox.style.display = active ? 'none' : '';
+            }
+            if (hint) hint.style.display = 'none';
+            if (loginBtn) loginBtn.style.display = active ? 'none' : '';
+            if (logoutBtn) logoutBtn.style.display = active ? 'none' : (logoutBtn.hidden ? 'none' : '');
+            if (active) {
+              lineMode = false;
+              pendingLineStart = null;
+              selectedBoxId = null;
+              selectedLineId = null;
+              renderScene();
+            }
+          }
+
+          function fitSceneToViewport() {
+            const imageWidth = image.naturalWidth || image.width || window.innerWidth;
+            const imageHeight = image.naturalHeight || image.height || window.innerHeight;
+            canvas.style.width = imageWidth + 'px';
+            overlay.style.width = imageWidth + 'px';
+            overlay.style.height = imageHeight + 'px';
+            linesSvg.setAttribute('viewBox', '0 0 ' + imageWidth + ' ' + imageHeight);
+            minScale = Math.min(window.innerWidth / imageWidth, window.innerHeight / imageHeight);
+            maxScale = Math.max(4, minScale * 8);
+            scale = minScale;
+            panX = (window.innerWidth - imageWidth * scale) / 2;
+            panY = (window.innerHeight - imageHeight * scale) / 2;
+            document.body.style.overflow = 'hidden';
+            applyTransform();
+          }
+
+          const originalSetBaseSize = setBaseSize;
+          setBaseSize = function() {
+            if (isUnifiedMobileViewer) {
+              fitSceneToViewport();
+              return;
+            }
+            originalSetBaseSize();
+          };
+
+          const originalResetView = resetView;
+          resetView = function() {
+            if (isUnifiedMobileViewer) {
+              fitSceneToViewport();
+              return;
+            }
+            originalResetView();
+          };
+
+          const originalFitInitial = fitInitial;
+          fitInitial = function() {
+            if (isUnifiedMobileViewer) {
+              fitSceneToViewport();
+              renderScene();
+              return;
+            }
+            originalFitInitial();
+          };
+
+          window.__setUnifiedMobileMode = function(active) {
+            installToolboxDrag();
+            setViewerLikeMode(active);
+            if (active) {
+              fitSceneToViewport();
+            } else {
+              originalSetBaseSize();
+              originalResetView();
+            }
+          };
+
+          const originalLoadData = loadData;
+          loadData = async function() {
+            installToolboxDrag();
+            setSyncState('Đang tải cloud...');
+            try {
+              const remote = await window.top.__mobileViewFetchRemoteDocumentV2();
+              if (remote) {
+                boxes = Array.isArray(remote.boxes) ? remote.boxes : [];
+                lines = Array.isArray(remote.lines) ? remote.lines : [];
+                migrateLines();
+                selectedBoxId = null;
+                selectedLineId = null;
+                renderScene();
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
+                setDirty(false);
+                setSyncState('Đã tải cloud');
+                if (isUnifiedMobileViewer) fitSceneToViewport();
+                return;
+              }
+              originalLoadData();
+              const localPayload = { boxes, lines };
+              if ((boxes && boxes.length) || (lines && lines.length)) {
+                setSyncState('Cloud trống, đang đẩy dữ liệu cũ...');
+                await window.top.__mobileViewSaveRemoteDocumentV2(localPayload);
+                await window.top.__mobileViewVerifyRemoteDocumentV2(localPayload);
+                setSyncState('Đã đẩy dữ liệu cũ lên cloud');
+              } else {
+                setSyncState('Cloud đang trống');
+              }
+              if (isUnifiedMobileViewer) fitSceneToViewport();
+            } catch (error) {
+              console.error(error);
+              originalLoadData();
+              setSyncState('Lỗi cloud, dùng dữ liệu máy này', true);
+              if (isUnifiedMobileViewer) fitSceneToViewport();
+            }
+          };
+
+          saveData = async function() {
+            const payload = { boxes, lines };
+            setSyncState('Đang lưu cloud...');
+            try {
+              const cleanPayload = await window.top.__mobileViewSaveRemoteDocumentV2(payload);
+              await window.top.__mobileViewVerifyRemoteDocumentV2(cleanPayload);
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanPayload));
+              setDirty(false);
+              setSyncState('Đã lưu cloud');
+            } catch (error) {
+              console.error(error);
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+              setDirty(true);
+              setSyncState('Lỗi cloud, chỉ lưu máy này', true);
+            }
+          };
+
+          let autoSaveTimer = null;
+          const originalSetDirty = setDirty;
+          setDirty = function(value) {
+            originalSetDirty(value);
+            if (!value) return;
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+              if (isDirty) saveData();
+            }, 1200);
+          };
+        }
+      `);
+    }
+
+    function applyMode() {
+      const mobile = isMobileMode();
+      frameStage.classList.toggle('mobile-landscape', isPortraitMobile());
+      mobileShell.classList.toggle('show', mobile);
+      if (!editorWindowRef) return;
+      injectBaseStyles(editorWindowRef.document);
+      if (editorWindowRef.__setUnifiedMobileMode) {
+        editorWindowRef.__isUnifiedMobileMode = mobile;
+        editorWindowRef.__setUnifiedMobileMode(mobile);
+      }
+      if (mobile) {
+        zoomResetBtn.textContent = `${Math.round((editorWindowRef.scale || 1) * 100)}%`;
+      }
+    }
+
+    window.__mobileViewFetchRemoteDocumentV2 = fetchRemoteDocument;
+    window.__mobileViewSaveRemoteDocumentV2 = saveRemoteDocument;
+    window.__mobileViewVerifyRemoteDocumentV2 = verifyRemoteDocument;
+
+    async function boot() {
+      try {
+        editorWindowRef = await findEditorWindow();
+        patchEditor(editorWindowRef);
+        await editorWindowRef.loadData();
+        applyMode();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    frame.addEventListener('load', boot);
+    window.addEventListener('resize', applyMode);
+    window.addEventListener('orientationchange', () => setTimeout(applyMode, 150));
+
+    zoomInBtn.addEventListener('click', () => {
+      const win = editorWindowRef;
+      if (!win || !win.zoomAt) return;
+      win.zoomAt(win.scale * 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      const win = editorWindowRef;
+      if (!win || !win.zoomAt) return;
+      win.zoomAt(win.scale / 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      const win = editorWindowRef;
+      if (!win || !win.resetView) return;
+      win.resetView();
+      zoomResetBtn.textContent = '100%';
+    });
+  </script>
+</body>
+</html>
