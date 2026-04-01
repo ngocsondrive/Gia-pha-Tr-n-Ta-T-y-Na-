@@ -57,6 +57,23 @@
       min-width: 30px;
       padding: 0 10px;
     }
+    .mobile-credit {
+      position: absolute;
+      right: 10px;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+      z-index: 110;
+      max-width: min(62vw, 360px);
+      padding: 5px 8px;
+      border-radius: 10px;
+      background: rgba(255, 248, 237, 0.78);
+      color: #6b3d16;
+      font-size: 10px;
+      line-height: 1.35;
+      text-align: right;
+      box-shadow: 0 10px 24px rgba(86, 48, 18, 0.12);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+    }
     @media (max-width: 900px) and (orientation: portrait), (pointer: coarse) and (max-aspect-ratio: 9/10) {
       .frame-stage.mobile-landscape {
         width: 100vh;
@@ -69,6 +86,14 @@
         transform-origin: center center;
       }
     }
+    @media (max-width: 900px), (pointer: coarse) {
+      .mobile-shell {
+        display: none !important;
+      }
+      .mobile-credit {
+        display: block;
+      }
+    }
   </style>
 </head>
 <body>
@@ -78,6 +103,7 @@
       <button id="zoomOutBtn" class="mobile-btn" type="button">-</button>
       <button id="zoomInBtn" class="mobile-btn" type="button">+</button>
     </div>
+    <div class="mobile-credit">Tran Son - Tran Ta Tay Na - Chi Ba - Tran Loi - Nhanh Hai</div>
   </div>
   <script>
     const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
@@ -256,8 +282,6 @@
           const classicApplyTransform = applyTransform;
           const classicZoomAt = zoomAt;
           const classicLoadData = loadData;
-          const classicResetView = resetView;
-          const classicFitInitial = fitInitial;
 
           function getImageSpace() {
             const width = image.naturalWidth || image.width || window.innerWidth;
