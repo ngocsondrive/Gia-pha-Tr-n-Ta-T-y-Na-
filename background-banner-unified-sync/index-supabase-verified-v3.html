@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tran Ta Tay Na Unified Sync Verified V3</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .frame-stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+    .mobile-shell {
+      position: absolute;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+      transform: translateX(-50%);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(255, 248, 237, 0.94);
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
+      backdrop-filter: blur(6px);
+    }
+    .mobile-shell.show { display: flex; }
+    .mobile-btn,
+    .mobile-zoom {
+      border: 1px solid rgba(112, 69, 31, 0.18);
+      background: #fffaf0;
+      color: #6b3d16;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      height: 30px;
+    }
+    .mobile-btn {
+      min-width: 30px;
+      padding: 0 10px;
+    }
+    .mobile-zoom {
+      min-width: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+    }
+    .sync-badge {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 120;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 260px;
+      max-width: min(92vw, 620px);
+      padding: 10px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(112, 69, 31, 0.16);
+      background: rgba(255, 248, 237, 0.97);
+      color: #6b3d16;
+      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.18);
+      backdrop-filter: blur(8px);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      text-align: left;
+    }
+    .sync-badge::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      flex: 0 0 10px;
+      border-radius: 999px;
+      background: #c98b46;
+      box-shadow: 0 0 0 4px rgba(201, 139, 70, 0.16);
+    }
+    .sync-badge.is-success {
+      background: rgba(240, 255, 246, 0.97);
+      color: #1f7a45;
+      border-color: rgba(39, 174, 96, 0.22);
+    }
+    .sync-badge.is-success::before {
+      background: #27ae60;
+      box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.16);
+    }
+    .sync-badge.is-error {
+      background: rgba(255, 244, 239, 0.97);
+      color: #9a3d1f;
+      border-color: rgba(208, 86, 42, 0.22);
+    }
+    .sync-badge.is-error::before {
+      background: #d0562a;
+      box-shadow: 0 0 0 4px rgba(208, 86, 42, 0.16);
+    }
+    @media (max-width: 900px) and (orientation: portrait), (pointer: coarse) and (max-aspect-ratio: 9/10) {
+      .frame-stage.mobile-landscape {
+        width: 100vh;
+        height: 100vw;
+        top: 50%;
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%) rotate(90deg);
+        transform-origin: center center;
+      }
+      .sync-badge {
+        top: calc(env(safe-area-inset-top, 0px) + 10px);
+        min-width: 0;
+        max-width: calc(100vw - 24px);
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="syncBadge" class="sync-badge">Đang khởi tạo cloud...</div>
+  <div id="frameStage" class="frame-stage">
+    <iframe id="appFrame" src="../background-banner-editor-7/"></iframe>
+    <div id="mobileShell" class="mobile-shell">
+      <button id="zoomOutBtn" class="mobile-btn" type="button">-</button>
+      <button id="zoomResetBtn" class="mobile-zoom" type="button">100%</button>
+      <button id="zoomInBtn" class="mobile-btn" type="button">+</button>
+    </div>
+  </div>
+  <script>
+    const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dXNsanRlcWVveXRkY294YWFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDM3MTksImV4cCI6MjA5MDUxOTcxOX0.-6wTksnJflmerln8aajmXS74FH8OXgJBqlNSp4CNPZ0';
+    const TABLE_NAME = 'tree_documents';
+    const DOCUMENT_ID = 'main';
+    const frame = document.getElementById('appFrame');
+    const frameStage = document.getElementById('frameStage');
+    const mobileShell = document.getElementById('mobileShell');
+    const syncBadge = document.getElementById('syncBadge');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    function setHostSyncState(text, tone) {
+      syncBadge.textContent = text;
+      syncBadge.classList.remove('is-success', 'is-error');
+      if (tone === 'success') syncBadge.classList.add('is-success');
+      if (tone === 'error') syncBadge.classList.add('is-error');
+    }
+
+    function formatError(error) {
+      const message = error && error.message ? error.message : String(error || 'Unknown error');
+      return message.length > 140 ? message.slice(0, 140) + '...' : message;
+    }
+
+    window.__updateUnifiedHostSyncState = function(text, isError = false, verified = false) {
+      setHostSyncState(text, isError ? 'error' : (verified ? 'success' : 'pending'));
+    };
+
+    function isMobileMode() {
+      return window.matchMedia('(max-width: 900px)').matches || window.matchMedia('(pointer: coarse)').matches;
+    }
+
+    function isPortraitMobile() {
+      return isMobileMode() && window.matchMedia('(orientation: portrait)').matches;
+    }
+
+    function injectBaseStyles(doc) {
+      if (doc.getElementById('unified-sync-style')) return;
+      const style = doc.createElement('style');
+      style.id = 'unified-sync-style';
+      style.textContent = `
+        .hint { display: none !important; }
+        @media (max-width: 900px), (pointer: coarse) {
+          .banner {
+            display: block !important;
+            width: clamp(54px, 13vw, 88px) !important;
+            top: 8px !important;
+          }
+          .banner-left {
+            left: 2px !important;
+            clip-path: inset(0 12% 0 13%) !important;
+          }
+          .banner-right {
+            right: 2px !important;
+            clip-path: inset(0 13% 0 12%) !important;
+          }
+          .topbar {
+            top: 6px !important;
+            right: 6px !important;
+            gap: 4px !important;
+            max-width: calc(100vw - 12px) !important;
+          }
+          .auth-btn,
+          .zoom-btn,
+          .tool-btn {
+            height: 28px !important;
+            padding: 0 10px !important;
+            font-size: 11px !important;
+          }
+          .status,
+          .save-state,
+          .mode-pill {
+            height: 28px !important;
+            padding: 0 8px !important;
+            font-size: 11px !important;
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function waitForEditorReady(win) {
+      return new Promise((resolve, reject) => {
+        const startedAt = Date.now();
+        const timer = setInterval(() => {
+          try {
+            if (win && typeof win.loadData === 'function' && typeof win.setDirty === 'function') {
+              clearInterval(timer);
+              resolve();
+              return;
+            }
+            if (Date.now() - startedAt > 12000) {
+              clearInterval(timer);
+              reject(new Error('Editor chưa sẵn sàng sau 12 giây'));
+            }
+          } catch (error) {
+            clearInterval(timer);
+            reject(error);
+          }
+        }, 250);
+      });
+    }
+
+    async function patchApp() {
+      try {
+        setHostSyncState('Đã tải iframe, đang chờ editor sẵn sàng...');
+        const win = frame.contentWindow;
+        const doc = win && win.document;
+        if (!win || !doc) throw new Error('Không truy cập được iframe');
+        injectBaseStyles(doc);
+        await waitForEditorReady(win);
+        setHostSyncState('Editor đã sẵn sàng, đang gắn bộ đồng bộ cloud...');
+        win.eval(`
+          if (!window.__unifiedSupabasePatchV3) {
+            window.__unifiedSupabasePatchV3 = true;
+            const SUPABASE_URL = '${SUPABASE_URL}';
+            const SUPABASE_ANON_KEY = '${SUPABASE_ANON_KEY}';
+            const TABLE_NAME = '${TABLE_NAME}';
+            const DOCUMENT_ID = '${DOCUMENT_ID}';
+            const LOCAL_STORAGE_KEY = 'background-banner-editor-3-data';
+
+            function supabaseHeaders(extra = {}) {
+              return {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+                ...extra,
+              };
+            }
+
+            function normalizeSyncPayload(payload) {
+              return {
+                boxes: Array.isArray(payload?.boxes) ? payload.boxes : [],
+                lines: Array.isArray(payload?.lines) ? payload.lines : [],
+              };
+            }
+
+            function isSamePayload(a, b) {
+              return JSON.stringify(normalizeSyncPayload(a)) === JSON.stringify(normalizeSyncPayload(b));
+            }
+
+            function reportSyncState(text, isError = false, verified = false) {
+              if (typeof saveState !== 'undefined' && saveState) {
+                saveState.style.display = 'flex';
+                saveState.textContent = text;
+                saveState.style.background = isError ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
+                saveState.style.color = isError ? '#9a3d1f' : '#1f7a45';
+                saveState.style.borderColor = isError ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
+              }
+              window.parent.__updateUnifiedHostSyncState?.(text, isError, verified);
+            }
+
+            async function fetchRemoteDocument() {
+              const response = await fetch(
+                SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?id=eq.' + encodeURIComponent(DOCUMENT_ID) + '&select=data',
+                { headers: supabaseHeaders() }
+              );
+              if (!response.ok) {
+                const text = await response.text();
+                throw new Error('Fetch failed: ' + response.status + ' ' + text);
+              }
+              const rows = await response.json();
+              return rows[0]?.data || null;
+            }
+
+            async function saveRemoteDocument(payload) {
+              const response = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME, {
+                method: 'POST',
+                headers: supabaseHeaders({
+                  'Content-Type': 'application/json',
+                  Prefer: 'resolution=merge-duplicates,return=minimal',
+                }),
+                body: JSON.stringify([{ id: DOCUMENT_ID, data: payload }]),
+              });
+              if (!response.ok) {
+                const text = await response.text();
+                throw new Error('Save failed: ' + response.status + ' ' + text);
+              }
+            }
+
+            async function verifyRemoteDocument(payload) {
+              const remote = normalizeSyncPayload(await fetchRemoteDocument());
+              const expected = normalizeSyncPayload(payload);
+              if (!isSamePayload(remote, expected)) {
+                throw new Error('Supabase trả về dữ liệu khác với dữ liệu vừa lưu');
+              }
+              return remote;
+            }
+
+            function applyLoadedState(payload) {
+              boxes = Array.isArray(payload?.boxes) ? payload.boxes : [];
+              lines = Array.isArray(payload?.lines) ? payload.lines : [];
+              migrateLines();
+              selectedBoxId = null;
+              selectedLineId = null;
+              renderScene();
+              setDirty(false);
+            }
+
+            const originalLoadData = loadData;
+            loadData = async function() {
+              reportSyncState('Đang kết nối Supabase...');
+              try {
+                const remote = await fetchRemoteDocument();
+                if (remote) {
+                  applyLoadedState(remote);
+                  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
+                  reportSyncState('Đã tải dữ liệu từ Supabase', false, true);
+                  return;
+                }
+
+                originalLoadData();
+                const localPayload = { boxes, lines };
+                if ((boxes && boxes.length) || (lines && lines.length)) {
+                  reportSyncState('Cloud trống, đang đẩy dữ liệu cũ lên...');
+                  await saveRemoteDocument(localPayload);
+                  await verifyRemoteDocument(localPayload);
+                  reportSyncState('Đã đẩy và xác nhận dữ liệu trên Supabase', false, true);
+                } else {
+                  reportSyncState('Cloud đang trống');
+                }
+              } catch (error) {
+                console.error(error);
+                originalLoadData();
+                reportSyncState('Lỗi kết nối cloud: ' + (error?.message || error), true);
+              }
+            };
+
+            saveData = async function() {
+              const payload = { boxes, lines };
+              reportSyncState('Đang lưu cloud...');
+              try {
+                await saveRemoteDocument(payload);
+                reportSyncState('Đã gửi dữ liệu, đang xác nhận trên Supabase...');
+                await verifyRemoteDocument(payload);
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+                setDirty(false);
+                reportSyncState('Đã lưu thành công trên Supabase', false, true);
+              } catch (error) {
+                console.error(error);
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+                setDirty(true);
+                reportSyncState('Lưu cloud thất bại: ' + (error?.message || error), true);
+              }
+            };
+
+            let autoSaveTimer = null;
+            const originalSetDirty = setDirty;
+            setDirty = function(value) {
+              originalSetDirty(value);
+              if (!value) return;
+              clearTimeout(autoSaveTimer);
+              autoSaveTimer = setTimeout(() => {
+                if (isDirty) saveData();
+              }, 1200);
+            };
+
+            function setViewerLikeMode(active) {
+              const topbar = document.querySelector('.topbar');
+              const toolbox = document.getElementById('toolbox');
+              const miniToolbox = document.getElementById('miniToolbox');
+              const hint = document.querySelector('.hint');
+              const loginBtn = document.getElementById('loginBtn');
+              const logoutBtn = document.getElementById('logoutBtn');
+              const status = document.getElementById('status');
+              const saveStateEl = document.getElementById('saveState');
+              if (topbar) topbar.style.display = active ? 'none' : 'flex';
+              if (toolbox) toolbox.classList.remove('open');
+              if (toolbox) toolbox.style.display = active ? 'none' : '';
+              if (miniToolbox) miniToolbox.classList.remove('show');
+              if (miniToolbox) miniToolbox.style.display = active ? 'none' : '';
+              if (hint) hint.style.display = 'none';
+              if (status) status.style.display = active ? 'none' : status.style.display;
+              if (saveStateEl) saveStateEl.style.display = active ? 'none' : saveStateEl.style.display;
+              if (loginBtn) loginBtn.style.display = active ? 'none' : '';
+              if (logoutBtn) logoutBtn.style.display = active ? 'none' : (logoutBtn.hidden ? 'none' : '');
+              document.body.style.touchAction = active ? 'none' : '';
+              if (stage) stage.style.overflow = active ? 'hidden' : 'auto';
+              overlay.querySelectorAll('.box').forEach((box) => {
+                box.style.pointerEvents = active ? 'none' : '';
+              });
+              linesSvg.querySelectorAll('.line-hit').forEach((hit) => {
+                hit.style.pointerEvents = active ? 'none' : '';
+              });
+              if (active) {
+                lineMode = false;
+                pendingLineStart = null;
+                selectedBoxId = null;
+                selectedLineId = null;
+                renderScene();
+              }
+            }
+
+            function getTouchDistance(a, b) {
+              return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+            }
+
+            function getTouchCenter(a, b) {
+              return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+            }
+
+            let touchState = null;
+            window.__setUnifiedMobileMode = function(active) {
+              setViewerLikeMode(active);
+              if (!active) touchState = null;
+            };
+
+            if (!window.__touchPatchedSync) {
+              window.__touchPatchedSync = true;
+              window.addEventListener('touchstart', (event) => {
+                if (!window.__isUnifiedMobileMode) return;
+                if (event.touches.length === 1) {
+                  touchState = {
+                    type: 'pan',
+                    startX: event.touches[0].clientX,
+                    startY: event.touches[0].clientY,
+                    basePanX: panX,
+                    basePanY: panY,
+                  };
+                } else if (event.touches.length === 2) {
+                  const center = getTouchCenter(event.touches[0], event.touches[1]);
+                  touchState = {
+                    type: 'pinch',
+                    baseScale: scale,
+                    distance: getTouchDistance(event.touches[0], event.touches[1]),
+                    centerX: center.x,
+                    centerY: center.y,
+                    basePanX: panX,
+                    basePanY: panY,
+                  };
+                }
+              }, { passive: false });
+
+              window.addEventListener('touchmove', (event) => {
+                if (!window.__isUnifiedMobileMode || !touchState) return;
+                event.preventDefault();
+                if (touchState.type === 'pan' && event.touches.length === 1) {
+                  panX = touchState.basePanX + (event.touches[0].clientX - touchState.startX);
+                  panY = touchState.basePanY + (event.touches[0].clientY - touchState.startY);
+                  applyTransform();
+                } else if (touchState.type === 'pinch' && event.touches.length === 2) {
+                  panX = touchState.basePanX;
+                  panY = touchState.basePanY;
+                  scale = touchState.baseScale;
+                  const center = getTouchCenter(event.touches[0], event.touches[1]);
+                  const nextScale = touchState.baseScale * (getTouchDistance(event.touches[0], event.touches[1]) / touchState.distance);
+                  zoomAt(nextScale, center.x, center.y);
+                }
+              }, { passive: false });
+
+              window.addEventListener('touchend', () => {
+                if (!window.__isUnifiedMobileMode) return;
+                touchState = null;
+              });
+            }
+          }
+        `);
+        setHostSyncState('Đã gắn bộ đồng bộ cloud, đang tải dữ liệu...');
+        await frame.contentWindow.loadData();
+        applyMode();
+      } catch (error) {
+        console.error(error);
+        setHostSyncState('Không khởi tạo được cloud: ' + formatError(error), 'error');
+      }
+    }
+
+    function applyMode() {
+      const win = frame.contentWindow;
+      const doc = win && win.document;
+      if (!win || !doc || !win.__setUnifiedMobileMode) return;
+      injectBaseStyles(doc);
+      const mobile = isMobileMode();
+      win.__isUnifiedMobileMode = mobile;
+      win.__setUnifiedMobileMode(mobile);
+      mobileShell.classList.toggle('show', mobile);
+      frameStage.classList.toggle('mobile-landscape', isPortraitMobile());
+      if (mobile) {
+        zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+      }
+    }
+
+    frame.addEventListener('load', patchApp);
+    window.addEventListener('resize', applyMode);
+    window.addEventListener('orientationchange', () => setTimeout(applyMode, 150));
+
+    zoomInBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.zoomAt(win.scale * 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.zoomAt(win.scale / 1.2, window.innerWidth / 2, window.innerHeight / 2);
+      zoomResetBtn.textContent = `${Math.round((win.scale || 1) * 100)}%`;
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.resetView();
+      zoomResetBtn.textContent = '100%';
+    });
+  </script>
+</body>
+</html>
