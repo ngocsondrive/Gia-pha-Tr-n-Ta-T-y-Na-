@@ -38,6 +38,10 @@
             '.box {',
             '  min-width: 8px !important;',
             '  min-height: 8px !important;',
+            '  transform: translateZ(0);',
+            '  backface-visibility: hidden;',
+            '  -webkit-font-smoothing: antialiased;',
+            '  text-rendering: geometricPrecision;',
             '}',
             '.box-content {',
             '  width: 100% !important;',
@@ -46,6 +50,10 @@
             '  align-items: center !important;',
             '  justify-content: center !important;',
             '  text-align: center !important;',
+            '  transform: translateZ(0);',
+            '  backface-visibility: hidden;',
+            '  -webkit-font-smoothing: antialiased;',
+            '  text-rendering: geometricPrecision;',
             '}',
             '.box.vertical-text .box-content {',
             '  width: 100% !important;',
@@ -54,6 +62,12 @@
             '  word-break: break-word !important;',
             '  line-height: 1 !important;',
             '  letter-spacing: 0 !important;',
+            '}',
+            '.lines-svg, .line-group, .line-path, .line-hit {',
+            '  shape-rendering: geometricPrecision !important;',
+            '  text-rendering: geometricPrecision !important;',
+            '  image-rendering: -webkit-optimize-contrast;',
+            '  transform: translateZ(0);',
             '}'
           ].join('\\n');
           document.head.appendChild(style);
@@ -101,6 +115,13 @@
           shouldUseVerticalText = function(box) {
             const fontSize = box.fontSize || 20;
             return box.width <= fontSize + 12;
+          };
+
+          getBoxAnchor = function(box, side) {
+            if (side === 'top') return { x: box.x + box.width / 2, y: box.y, side };
+            if (side === 'bottom') return { x: box.x + box.width / 2, y: box.y + box.height, side };
+            if (side === 'left') return { x: box.x, y: box.y + box.height / 2, side };
+            return { x: box.x + box.width, y: box.y + box.height / 2, side: 'right' };
           };
 
           renderBoxes = function() {
