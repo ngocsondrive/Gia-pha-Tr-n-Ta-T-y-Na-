@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Trantataynav1 Fixed</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="./trantataynav1-source.html" title="Trantataynav1 Fixed"></iframe>
+  <script>
+    const LOCAL_STORAGE_KEY = 'background-banner-editor-3-data';
+
+    const frame = document.getElementById('appFrame');
+
+    function setTopViewportHelpers() {
+      window.__mobileViewGetViewportV8 = () => ({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+
+    function setSyncState(editorWin, text, isError = false) {
+      const saveState = editorWin.saveState || editorWin.document.getElementById('saveState');
+      if (!saveState) return;
+      saveState.style.display = 'flex';
+      saveState.textContent = text;
+      saveState.style.background = isError ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
+      saveState.style.color = isError ? '#9a3d1f' : '#1f7a45';
+      saveState.style.borderColor = isError ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
+    }
+
+    async function waitForFrameLoad(targetFrame) {
+      if (targetFrame.contentDocument && targetFrame.contentDocument.readyState === 'complete') return;
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Khung tải quá lâu')), 12000);
+        targetFrame.addEventListener('load', () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    }
+
+    async function findActualEditorWindow() {
+      let currentWin = frame.contentWindow;
+      for (let depth = 0; depth < 5; depth += 1) {
+        if (!currentWin) throw new Error('Không truy cập được editor');
+        if (typeof currentWin.renderScene === 'function' && Array.isArray(currentWin.boxes)) return currentWin;
+        const nestedFrame = currentWin.document.getElementById('appFrame');
+        if (!nestedFrame) break;
+        await waitForFrameLoad(nestedFrame);
+        currentWin = nestedFrame.contentWindow;
+      }
+      throw new Error('Không tìm thấy editor thật');
+    }
+
+    function injectBoxFix(editorWin) {
+      editorWin.eval(`
+        if (!window.__trantataynaBoxFixV1) {
+          window.__trantataynaBoxFixV1 = true;
+          const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
+          let fixedAutoSaveTimer = null;
+
+          function getImageSpace() {
+            return {
+              width: image.naturalWidth || image.width || window.innerWidth,
+              height: image.naturalHeight || image.height || window.innerHeight,
+            };
+          }
+
+          function scalePoint(point, scaleX, scaleY) {
+            return { ...point, x: (point.x || 0) * scaleX, y: (point.y || 0) * scaleY };
+          }
+
+          function scalePayloadToImageSpace(payload) {
+            const clean = payload || { boxes: [], lines: [], meta: {} };
+            const source = clean.meta && clean.meta.coordSpace && clean.meta.coordSpace.width && clean.meta.coordSpace.height
+              ? clean.meta.coordSpace
+              : getImageSpace();
+            const target = getImageSpace();
+            const scaleX = target.width / source.width;
+            const scaleY = target.height / source.height;
+
+            boxes = (clean.boxes || []).map((box) => ({
+              ...box,
+              x: box.x * scaleX,
+              y: box.y * scaleY,
+              width: box.width * scaleX,
+              height: box.height * scaleY,
+              fontSize: box.fontSize * Math.min(scaleX, scaleY),
+              borderWidth: Math.max(1, box.borderWidth * Math.min(scaleX, scaleY)),
+            }));
+            lines = (clean.lines || []).map((line) => ({
+              ...line,
+              start: line.start && line.start.kind === 'point' ? scalePoint(line.start, scaleX, scaleY) : line.start,
+              end: line.end && line.end.kind === 'point' ? scalePoint(line.end, scaleX, scaleY) : line.end,
+              width: Math.max(1, line.width * Math.min(scaleX, scaleY)),
+            }));
+          }
+
+          function createPersistedPayload() {
+            return {
+              boxes: boxes.map((box) => ({ ...box })),
+              lines: lines.map((line) => ({ ...line })),
+              meta: { coordSpace: getImageSpace() },
+            };
+          }
+
+          async function fixedLoadData() {
+            window.top.__fixedSyncState('Đang tải cloud...', false);
+            try {
+              const remote = await window.top.__mobileViewFetchRemoteDocumentV8();
+              if (remote) {
+                scalePayloadToImageSpace(remote);
+                if (typeof migrateLines === 'function') migrateLines();
+                selectedBoxId = null;
+                selectedLineId = null;
+                renderScene();
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
+                if (typeof setDirty === 'function') setDirty(false);
+                window.top.__fixedSyncState('Đã tải cloud', false);
+                return;
+              }
+
+              const localPayload = localStorage.getItem(LOCAL_STORAGE_KEY);
+              if (localPayload) {
+                const parsed = JSON.parse(localPayload);
+                scalePayloadToImageSpace(parsed);
+                if (typeof migrateLines === 'function') migrateLines();
+                selectedBoxId = null;
+                selectedLineId = null;
+                renderScene();
+                if (typeof setDirty === 'function') setDirty(false);
+                window.top.__fixedSyncState('Đã tải dữ liệu máy này', false);
+                return;
+              }
+
+              boxes = [];
+              lines = [];
+              renderScene();
+              window.top.__fixedSyncState('Cloud đang trống', false);
+            } catch (error) {
+              console.error(error);
+              window.top.__fixedSyncState('Lỗi cloud, dùng dữ liệu máy này', true);
+            }
+          }
+
+          async function fixedSaveData() {
+            const payload = createPersistedPayload();
+            window.top.__fixedSyncState('Đang lưu cloud...', false);
+            try {
+              const cleanPayload = await window.top.__mobileViewSaveRemoteDocumentV8(payload);
+              await window.top.__mobileViewVerifyRemoteDocumentV8(cleanPayload);
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanPayload));
+              if (typeof window.__fixedOriginalSetDirty === 'function') {
+                window.__fixedOriginalSetDirty(false);
+              } else if (typeof setDirty === 'function') {
+                setDirty(false);
+              }
+              window.top.__fixedSyncState('Đã lưu cloud', false);
+            } catch (error) {
+              console.error(error);
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+              window.top.__fixedSyncState('Lỗi cloud, chỉ lưu máy này', true);
+            }
+          }
+
+          window.__fixedOriginalSetDirty = typeof setDirty === 'function' ? setDirty : null;
+          window.loadData = fixedLoadData;
+          window.saveData = fixedSaveData;
+          if (window.__fixedOriginalSetDirty) {
+            window.setDirty = function(value) {
+              window.__fixedOriginalSetDirty(value);
+              if (!value) return;
+              clearTimeout(fixedAutoSaveTimer);
+              fixedAutoSaveTimer = setTimeout(() => {
+                if (window.isDirty) fixedSaveData();
+              }, 1200);
+            };
+          }
+        }
+      `);
+    }
+
+    async function boot() {
+      try {
+        setTopViewportHelpers();
+        const editorWin = await findActualEditorWindow();
+        window.__fixedSyncState = (text, isError) => setSyncState(editorWin, text, isError);
+        injectBoxFix(editorWin);
+        await editorWin.loadData();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    frame.addEventListener('load', () => {
+      setTimeout(boot, 250);
+    });
+  </script>
+</body>
+</html>
