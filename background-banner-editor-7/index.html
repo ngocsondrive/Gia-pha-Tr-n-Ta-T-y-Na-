@@ -30,32 +30,137 @@
       const win = frame.contentWindow;
       if (!win) return;
       win.eval(`
-        if (!window.__horizontalAlignPatched) {
-          window.__horizontalAlignPatched = true;
+        if (!window.__boxAlignPatchedV2) {
+          window.__boxAlignPatchedV2 = true;
           const SNAP_THRESHOLD = 10;
+          const style = document.createElement('style');
+          style.textContent = [
+            '.box {',
+            '  min-width: 8px !important;',
+            '  min-height: 8px !important;',
+            '}',
+            '.box-content {',
+            '  width: 100% !important;',
+            '  height: 100% !important;',
+            '  display: flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  text-align: center !important;',
+            '}',
+            '.box.vertical-text .box-content {',
+            '  width: 100% !important;',
+            '  height: 100% !important;',
+            '  white-space: pre-line !important;',
+            '  word-break: break-word !important;',
+            '  line-height: 1 !important;',
+            '  letter-spacing: 0 !important;',
+            '}'
+          ].join('\\n');
+          document.head.appendChild(style);
+
           const guideLayer = document.createElement('div');
           guideLayer.style.position = 'absolute';
           guideLayer.style.inset = '0';
           guideLayer.style.pointerEvents = 'none';
           guideLayer.style.zIndex = '30';
 
-          const guideLine = document.createElement('div');
-          guideLine.style.position = 'absolute';
-          guideLine.style.height = '0';
-          guideLine.style.borderTop = '2px dashed rgba(47, 128, 237, 0.9)';
-          guideLine.style.display = 'none';
-          guideLayer.appendChild(guideLine);
+          const horizontalGuide = document.createElement('div');
+          horizontalGuide.style.position = 'absolute';
+          horizontalGuide.style.height = '0';
+          horizontalGuide.style.borderTop = '2px dashed rgba(47, 128, 237, 0.9)';
+          horizontalGuide.style.display = 'none';
+          guideLayer.appendChild(horizontalGuide);
+
+          const verticalGuide = document.createElement('div');
+          verticalGuide.style.position = 'absolute';
+          verticalGuide.style.width = '0';
+          verticalGuide.style.borderLeft = '2px dashed rgba(47, 128, 237, 0.9)';
+          verticalGuide.style.display = 'none';
+          guideLayer.appendChild(verticalGuide);
           overlay.appendChild(guideLayer);
 
           function hideAlignGuide() {
-            guideLine.style.display = 'none';
+            horizontalGuide.style.display = 'none';
+            verticalGuide.style.display = 'none';
           }
 
-          function showAlignGuide(y, left, right) {
-            guideLine.style.display = 'block';
-            guideLine.style.top = y + 'px';
-            guideLine.style.left = left + 'px';
-            guideLine.style.width = Math.max(0, right - left) + 'px';
+          function showHorizontalGuide(y, left, right) {
+            horizontalGuide.style.display = 'block';
+            horizontalGuide.style.top = y + 'px';
+            horizontalGuide.style.left = left + 'px';
+            horizontalGuide.style.width = Math.max(0, right - left) + 'px';
+          }
+
+          function showVerticalGuide(x, top, bottom) {
+            verticalGuide.style.display = 'block';
+            verticalGuide.style.left = x + 'px';
+            verticalGuide.style.top = top + 'px';
+            verticalGuide.style.height = Math.max(0, bottom - top) + 'px';
+          }
+
+          shouldUseVerticalText = function(box) {
+            const fontSize = box.fontSize || 20;
+            return box.width <= fontSize + 12;
+          };
+
+          renderBoxes = function() {
+            overlay.querySelectorAll('.box').forEach((el) => el.remove());
+            boxes.forEach((box) => {
+              const isVertical = shouldUseVerticalText(box);
+              const el = document.createElement('div');
+              el.className = 'box' + (box.id === selectedBoxId ? ' selected' : '') + (isVertical ? ' vertical-text' : '');
+              el.style.left = box.x + 'px';
+              el.style.top = box.y + 'px';
+              el.style.width = box.width + 'px';
+              el.style.height = box.height + 'px';
+              el.style.background = box.background;
+              el.style.borderColor = box.borderColor;
+              el.style.color = box.textColor;
+              el.style.borderWidth = box.borderWidth + 'px';
+              el.style.fontSize = (box.fontSize || 20) + 'px';
+              el.dataset.id = box.id;
+
+              const content = document.createElement('div');
+              content.className = 'box-content';
+              content.textContent = isVertical ? Array.from(String(box.text || '')).join('\\n') : box.text;
+              el.appendChild(content);
+
+              const handle = document.createElement('div');
+              handle.className = 'resize-handle';
+              handle.dataset.id = box.id;
+              el.appendChild(handle);
+
+              el.addEventListener('mousedown', onBoxMouseDown);
+              el.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (lineMode) {
+                  handleLineTargetBox(box, event);
+                  return;
+                }
+                selectBox(box.id);
+              });
+              handle.addEventListener('mousedown', onResizeMouseDown);
+              overlay.appendChild(el);
+            });
+          };
+
+          resizeActiveBox = function(event) {
+            const box = boxes.find((item) => item.id === activeBoxId);
+            if (!box) return;
+            box.width = Math.max(8, resizeOriginWidth + (event.clientX - dragStartX) / scale);
+            box.height = Math.max(8, resizeOriginHeight + (event.clientY - dragStartY) / scale);
+            setDirty(true);
+            renderScene();
+          };
+
+          if (boxFontSizeInput) {
+            boxFontSizeInput.min = '1';
+            boxFontSizeInput.addEventListener('input', (event) => {
+              event.stopImmediatePropagation();
+              const nextValue = Math.max(1, Number(boxFontSizeInput.value) || 1);
+              boxFontSizeInput.value = String(nextValue);
+              updateSelectedBox({ fontSize: nextValue });
+            }, true);
           }
 
           const originalMoveActiveBox = moveActiveBox;
@@ -63,30 +168,43 @@
             const box = boxes.find((item) => item.id === activeBoxId);
             if (!box) return originalMoveActiveBox(event);
 
-            const proposedX = Math.max(0, dragOriginX + (event.clientX - dragStartX) / scale);
+            let proposedX = Math.max(0, dragOriginX + (event.clientX - dragStartX) / scale);
             let proposedY = Math.max(0, dragOriginY + (event.clientY - dragStartY) / scale);
 
-            const currentLines = [
+            const currentHorizontal = [
               { key: 'top', value: proposedY },
               { key: 'center', value: proposedY + box.height / 2 },
               { key: 'bottom', value: proposedY + box.height },
             ];
 
-            let best = null;
+            const currentVertical = [
+              { key: 'left', value: proposedX },
+              { key: 'center', value: proposedX + box.width / 2 },
+              { key: 'right', value: proposedX + box.width },
+            ];
+
+            let bestHorizontal = null;
+            let bestVertical = null;
             boxes.forEach((other) => {
               if (other.id === activeBoxId) return;
-              const otherLines = [
+              const otherHorizontal = [
                 { key: 'top', value: other.y },
                 { key: 'center', value: other.y + other.height / 2 },
                 { key: 'bottom', value: other.y + other.height },
               ];
-              currentLines.forEach((currentLine) => {
-                otherLines.forEach((otherLine) => {
+              const otherVertical = [
+                { key: 'left', value: other.x },
+                { key: 'center', value: other.x + other.width / 2 },
+                { key: 'right', value: other.x + other.width },
+              ];
+
+              currentHorizontal.forEach((currentLine) => {
+                otherHorizontal.forEach((otherLine) => {
                   const delta = otherLine.value - currentLine.value;
                   const distance = Math.abs(delta);
                   if (distance > SNAP_THRESHOLD) return;
-                  if (!best || distance < best.distance) {
-                    best = {
+                  if (!bestHorizontal || distance < bestHorizontal.distance) {
+                    bestHorizontal = {
                       distance,
                       snappedY: proposedY + delta,
                       lineY: otherLine.value,
@@ -96,18 +214,33 @@
                   }
                 });
               });
+
+              currentVertical.forEach((currentLine) => {
+                otherVertical.forEach((otherLine) => {
+                  const delta = otherLine.value - currentLine.value;
+                  const distance = Math.abs(delta);
+                  if (distance > SNAP_THRESHOLD) return;
+                  if (!bestVertical || distance < bestVertical.distance) {
+                    bestVertical = {
+                      distance,
+                      snappedX: proposedX + delta,
+                      lineX: otherLine.value,
+                      top: Math.min(proposedY, other.y),
+                      bottom: Math.max(proposedY + box.height, other.y + other.height),
+                    };
+                  }
+                });
+              });
             });
 
-            box.x = proposedX;
-            box.y = best ? Math.max(0, best.snappedY) : proposedY;
+            box.x = bestVertical ? Math.max(0, bestVertical.snappedX) : proposedX;
+            box.y = bestHorizontal ? Math.max(0, bestHorizontal.snappedY) : proposedY;
             setDirty(true);
             renderScene();
 
-            if (best) {
-              showAlignGuide(best.lineY, best.left, best.right);
-            } else {
-              hideAlignGuide();
-            }
+            hideAlignGuide();
+            if (bestHorizontal) showHorizontalGuide(bestHorizontal.lineY, bestHorizontal.left, bestHorizontal.right);
+            if (bestVertical) showVerticalGuide(bestVertical.lineX, bestVertical.top, bestVertical.bottom);
           };
 
           const originalStopBoxInteractions = stopBoxInteractions;
