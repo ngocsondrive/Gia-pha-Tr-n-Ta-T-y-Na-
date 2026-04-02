@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <title>Trantataynav1 Book</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .shell {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: transparent;
+    }
+    .book-trigger {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 120;
+      max-width: min(360px, calc(100% - 24px));
+      padding: 11px 16px;
+      border: 1px solid rgba(119, 73, 28, 0.22);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 250, 238, 0.96), rgba(242, 221, 178, 0.94));
+      color: #6b3d16;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: 0.03em;
+      text-align: left;
+      box-shadow: 0 14px 28px rgba(84, 45, 15, 0.16);
+      cursor: pointer;
+    }
+    .book-trigger:hover { transform: translateY(-1px); }
+    .book-trigger:active { transform: translateY(0); }
+    .book-overlay[hidden] { display: none !important; }
+    .book-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 220;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(78, 42, 17, 0.34);
+      backdrop-filter: blur(6px);
+    }
+    .book-modal {
+      position: relative;
+      width: min(760px, 100%);
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 28px 26px 22px;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at top, rgba(255, 247, 229, 0.98), rgba(237, 210, 160, 0.96)),
+        linear-gradient(180deg, rgba(254, 247, 229, 0.98), rgba(235, 205, 156, 0.98));
+      box-shadow:
+        0 26px 64px rgba(67, 33, 8, 0.28),
+        inset 0 0 0 1px rgba(147, 92, 35, 0.12);
+      overflow: hidden;
+    }
+    .book-modal::before,
+    .book-modal::after {
+      content: "";
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #9c5c24, #6b3d16);
+      box-shadow: inset 0 2px 4px rgba(255, 239, 208, 0.25);
+    }
+    .book-modal::before { top: 8px; }
+    .book-modal::after { bottom: 8px; }
+    .book-header {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 10px;
+    }
+    .book-title {
+      margin: 0;
+      color: #6b3d16;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.1;
+    }
+    .book-subtitle {
+      margin: 6px 0 0;
+      color: rgba(107, 61, 22, 0.78);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .book-close {
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(107, 61, 22, 0.1);
+      color: #6b3d16;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    .book-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .book-toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .book-action {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid rgba(121, 72, 27, 0.18);
+      border-radius: 999px;
+      background: rgba(255, 248, 234, 0.9);
+      color: #6b3d16;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .book-action[disabled] {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .book-save-state {
+      min-height: 24px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(39, 174, 96, 0.12);
+      color: #1f7a45;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 24px;
+    }
+    .book-page-shell {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) 52px;
+      gap: 12px;
+      align-items: stretch;
+      min-height: 0;
+      flex: 1 1 auto;
+    }
+    .book-nav {
+      align-self: center;
+      width: 52px;
+      height: 52px;
+      border: 0;
+      border-radius: 50%;
+      background: linear-gradient(180deg, rgba(157, 96, 37, 0.94), rgba(107, 61, 22, 0.96));
+      color: #fff6e9;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 8px 16px rgba(78, 42, 17, 0.18);
+    }
+    .book-nav[disabled] {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .book-page {
+      position: relative;
+      min-height: 320px;
+      padding: 28px 26px;
+      border-radius: 20px;
+      background:
+        linear-gradient(90deg, rgba(180, 129, 73, 0.12), transparent 12%, transparent 88%, rgba(180, 129, 73, 0.12)),
+        linear-gradient(180deg, rgba(255, 248, 229, 0.98), rgba(247, 234, 201, 0.96));
+      box-shadow:
+        inset 0 0 0 1px rgba(153, 98, 37, 0.14),
+        inset 0 12px 32px rgba(255, 255, 255, 0.3),
+        0 14px 26px rgba(110, 62, 19, 0.1);
+      overflow: hidden;
+    }
+    .book-page::before {
+      content: "";
+      position: absolute;
+      inset: 18px 16px;
+      border: 1px solid rgba(152, 96, 34, 0.12);
+      border-radius: 14px;
+      pointer-events: none;
+    }
+    .book-page-view,
+    .book-page-editor {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      min-height: 264px;
+      box-sizing: border-box;
+      border: 0;
+      background: transparent;
+      color: #5b3416;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px;
+      line-height: 1.82;
+      resize: none;
+      outline: none;
+    }
+    .book-page-view {
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .book-page-editor { display: none; }
+    .book-modal.editing .book-page-view { display: none; }
+    .book-modal.editing .book-page-editor { display: block; }
+    .book-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #6b3d16;
+      font-size: 14px;
+      font-weight: 700;
+      padding-bottom: 8px;
+    }
+    @media (max-width: 900px), (pointer: coarse) {
+      .book-trigger {
+        top: 10px;
+        left: 10px;
+        max-width: min(66vw, calc(100% - 20px));
+        padding: 9px 12px;
+        font-size: 11px;
+      }
+      .book-overlay { padding: 12px; }
+      .book-modal {
+        width: 100%;
+        padding: 24px 16px 18px;
+        border-radius: 24px;
+      }
+      .book-modal::before,
+      .book-modal::after {
+        left: 16px;
+        right: 16px;
+      }
+      .book-title { font-size: 22px; }
+      .book-subtitle { font-size: 11px; }
+      .book-toolbar { gap: 8px; }
+      .book-action {
+        height: 32px;
+        padding: 0 11px;
+        font-size: 12px;
+      }
+      .book-save-state { font-size: 11px; }
+      .book-page-shell {
+        grid-template-columns: 42px minmax(0, 1fr) 42px;
+        gap: 8px;
+      }
+      .book-nav {
+        width: 42px;
+        height: 42px;
+        font-size: 17px;
+      }
+      .book-page {
+        min-height: 220px;
+        padding: 18px 16px;
+      }
+      .book-page-view,
+      .book-page-editor {
+        min-height: 180px;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .book-footer { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <iframe src="./trantataynav1.html" title="Trantataynav1"></iframe>
+    <button id="bookTriggerBtn" class="book-trigger" type="button">ĐỌC CUỐN GIA PHẢ TRẦN TẢ TÂY NẠ</button>
+    <div id="bookOverlay" class="book-overlay" hidden>
+      <div id="bookModal" class="book-modal" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
+        <div class="book-header">
+          <div>
+            <h2 id="bookTitle" class="book-title">Cuốn Gia Phả Trần Tả Tây Nạ</h2>
+            <p class="book-subtitle">Có thể đọc, nhập văn bản, chia nhiều trang và lưu lại riêng với sơ đồ.</p>
+          </div>
+          <button id="bookCloseBtn" class="book-close" type="button" aria-label="Đóng cuốn gia phả">×</button>
+        </div>
+        <div class="book-toolbar">
+          <div class="book-toolbar-group">
+            <button id="bookEditBtn" class="book-action" type="button">Chỉnh sửa</button>
+            <button id="bookAddPageBtn" class="book-action" type="button">Thêm trang</button>
+            <button id="bookDeletePageBtn" class="book-action" type="button">Xóa trang</button>
+          </div>
+          <div id="bookSaveState" class="book-save-state">Đang tải cuốn gia phả...</div>
+        </div>
+        <div class="book-page-shell">
+          <button id="bookPrevBtn" class="book-nav" type="button" aria-label="Trang trước">‹</button>
+          <div class="book-page">
+            <div id="bookPageView" class="book-page-view"></div>
+            <textarea id="bookPageEditor" class="book-page-editor" spellcheck="false"></textarea>
+          </div>
+          <button id="bookNextBtn" class="book-nav" type="button" aria-label="Trang sau">›</button>
+        </div>
+        <div class="book-footer">
+          <span id="bookPageIndicator">Trang 1 / 1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dXNsanRlcWVveXRkY294YWFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDM3MTksImV4cCI6MjA5MDUxOTcxOX0.-6wTksnJflmerln8aajmXS74FH8OXgJBqlNSp4CNPZ0';
+    const TABLE_NAME = 'tree_documents';
+    const BOOK_DOCUMENT_ID = 'classic-main-book';
+    const BOOK_LOCAL_STORAGE_KEY = 'trantataynav1-book-pages-v1';
+    const DEFAULT_BOOK_PAGES = [
+      'Đây là cuốn gia phả Trần Tả Tây Nạ.\n\nBạn có thể mở chế độ chỉnh sửa để nhập văn bản, chia thành nhiều trang và lưu lại nội dung tại đây.'
+    ];
+
+    const bookTriggerBtn = document.getElementById('bookTriggerBtn');
+    const bookOverlay = document.getElementById('bookOverlay');
+    const bookModal = document.getElementById('bookModal');
+    const bookCloseBtn = document.getElementById('bookCloseBtn');
+    const bookEditBtn = document.getElementById('bookEditBtn');
+    const bookAddPageBtn = document.getElementById('bookAddPageBtn');
+    const bookDeletePageBtn = document.getElementById('bookDeletePageBtn');
+    const bookPrevBtn = document.getElementById('bookPrevBtn');
+    const bookNextBtn = document.getElementById('bookNextBtn');
+    const bookPageView = document.getElementById('bookPageView');
+    const bookPageEditor = document.getElementById('bookPageEditor');
+    const bookPageIndicator = document.getElementById('bookPageIndicator');
+    const bookSaveState = document.getElementById('bookSaveState');
+
+    let bookState = { pages: [...DEFAULT_BOOK_PAGES] };
+    let currentBookPageIndex = 0;
+    let bookEditMode = false;
+    let bookLoaded = false;
+    let bookSaveTimer = null;
+
+    function supabaseHeaders(extra = {}) {
+      return { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, ...extra };
+    }
+
+    function sanitizeBookState(payload) {
+      const pages = Array.isArray(payload?.pages)
+        ? payload.pages.map((page) => String(page ?? ''))
+        : [];
+      return { pages: pages.length ? pages : [...DEFAULT_BOOK_PAGES] };
+    }
+
+    async function fetchBookDocument() {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${encodeURIComponent(BOOK_DOCUMENT_ID)}&select=data`, { headers: supabaseHeaders() });
+      if (!response.ok) throw new Error(`Book fetch failed: ${response.status} ${await response.text()}`);
+      const rows = await response.json();
+      return rows[0]?.data || null;
+    }
+
+    async function saveBookDocument(payload) {
+      const cleanPayload = sanitizeBookState(payload);
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
+        method: 'POST',
+        headers: supabaseHeaders({ 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify([{ id: BOOK_DOCUMENT_ID, data: cleanPayload }]),
+      });
+      if (!response.ok) throw new Error(`Book save failed: ${response.status} ${await response.text()}`);
+      return cleanPayload;
+    }
+
+    async function verifyBookDocument(payload) {
+      const expected = sanitizeBookState(payload);
+      const remote = sanitizeBookState(await fetchBookDocument());
+      if (JSON.stringify(expected) !== JSON.stringify(remote)) throw new Error('Cuốn gia phả lưu lên cloud chưa khớp');
+    }
+
+    function setBookSaveState(text, isError = false) {
+      bookSaveState.textContent = text;
+      bookSaveState.style.background = isError ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
+      bookSaveState.style.color = isError ? '#9a3d1f' : '#1f7a45';
+    }
+
+    function persistCurrentBookEditorValue() {
+      if (!bookState.pages.length) bookState.pages = [...DEFAULT_BOOK_PAGES];
+      bookState.pages[currentBookPageIndex] = bookPageEditor.value;
+      bookPageView.textContent = bookPageEditor.value;
+    }
+
+    function renderBookState() {
+      bookState = sanitizeBookState(bookState);
+      currentBookPageIndex = Math.max(0, Math.min(currentBookPageIndex, bookState.pages.length - 1));
+      const currentPage = bookState.pages[currentBookPageIndex] || '';
+      bookModal.classList.toggle('editing', bookEditMode);
+      bookPageView.textContent = currentPage;
+      if (bookPageEditor.value !== currentPage) bookPageEditor.value = currentPage;
+      bookPageIndicator.textContent = `Trang ${currentBookPageIndex + 1} / ${bookState.pages.length}`;
+      bookPrevBtn.disabled = currentBookPageIndex <= 0;
+      bookNextBtn.disabled = currentBookPageIndex >= bookState.pages.length - 1;
+      bookDeletePageBtn.disabled = !bookState.pages.length;
+      bookEditBtn.textContent = bookEditMode ? 'Xong chỉnh sửa' : 'Chỉnh sửa';
+    }
+
+    async function commitBookSave() {
+      const cleanPayload = sanitizeBookState(bookState);
+      localStorage.setItem(BOOK_LOCAL_STORAGE_KEY, JSON.stringify(cleanPayload));
+      try {
+        setBookSaveState('Đang lưu cuốn gia phả...');
+        const saved = await saveBookDocument(cleanPayload);
+        await verifyBookDocument(saved);
+        setBookSaveState('Đã lưu cuốn gia phả');
+      } catch (error) {
+        console.error(error);
+        setBookSaveState('Lỗi cloud, chỉ lưu máy này', true);
+      }
+    }
+
+    function scheduleBookSave() {
+      persistCurrentBookEditorValue();
+      localStorage.setItem(BOOK_LOCAL_STORAGE_KEY, JSON.stringify(sanitizeBookState(bookState)));
+      setBookSaveState('Đang lưu cuốn gia phả...');
+      clearTimeout(bookSaveTimer);
+      bookSaveTimer = setTimeout(() => {
+        commitBookSave();
+      }, 700);
+    }
+
+    async function loadBookState() {
+      try {
+        const remote = await fetchBookDocument();
+        if (remote) {
+          bookState = sanitizeBookState(remote);
+          localStorage.setItem(BOOK_LOCAL_STORAGE_KEY, JSON.stringify(bookState));
+          setBookSaveState('Đã tải cuốn gia phả');
+        } else {
+          const localPayload = localStorage.getItem(BOOK_LOCAL_STORAGE_KEY);
+          if (localPayload) {
+            bookState = sanitizeBookState(JSON.parse(localPayload));
+            setBookSaveState('Đã tải cuốn gia phả từ máy này');
+          } else {
+            bookState = sanitizeBookState({ pages: DEFAULT_BOOK_PAGES });
+            setBookSaveState('Cuốn gia phả đang trống');
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        try {
+          const localPayload = localStorage.getItem(BOOK_LOCAL_STORAGE_KEY);
+          bookState = sanitizeBookState(localPayload ? JSON.parse(localPayload) : { pages: DEFAULT_BOOK_PAGES });
+        } catch {
+          bookState = sanitizeBookState({ pages: DEFAULT_BOOK_PAGES });
+        }
+        setBookSaveState('Lỗi cloud, dùng bản máy này', true);
+      }
+      bookLoaded = true;
+      renderBookState();
+    }
+
+    function openBookOverlay() {
+      bookOverlay.hidden = false;
+      renderBookState();
+      if (bookEditMode) bookPageEditor.focus();
+    }
+
+    function closeBookOverlay() {
+      if (bookEditMode) persistCurrentBookEditorValue();
+      bookOverlay.hidden = true;
+    }
+
+    bookTriggerBtn.addEventListener('click', () => {
+      if (!bookLoaded) renderBookState();
+      openBookOverlay();
+    });
+
+    bookCloseBtn.addEventListener('click', closeBookOverlay);
+    bookOverlay.addEventListener('click', (event) => {
+      if (event.target === bookOverlay) closeBookOverlay();
+    });
+
+    bookEditBtn.addEventListener('click', () => {
+      if (bookEditMode) {
+        persistCurrentBookEditorValue();
+        scheduleBookSave();
+      }
+      bookEditMode = !bookEditMode;
+      renderBookState();
+      if (bookEditMode) {
+        bookPageEditor.focus();
+        bookPageEditor.setSelectionRange(bookPageEditor.value.length, bookPageEditor.value.length);
+      }
+    });
+
+    bookAddPageBtn.addEventListener('click', () => {
+      persistCurrentBookEditorValue();
+      bookState.pages.splice(currentBookPageIndex + 1, 0, '');
+      currentBookPageIndex += 1;
+      bookEditMode = true;
+      renderBookState();
+      bookPageEditor.focus();
+      scheduleBookSave();
+    });
+
+    bookDeletePageBtn.addEventListener('click', () => {
+      persistCurrentBookEditorValue();
+      if (bookState.pages.length <= 1) {
+        bookState.pages = [''];
+        currentBookPageIndex = 0;
+      } else {
+        bookState.pages.splice(currentBookPageIndex, 1);
+        currentBookPageIndex = Math.max(0, Math.min(currentBookPageIndex, bookState.pages.length - 1));
+      }
+      renderBookState();
+      scheduleBookSave();
+    });
+
+    bookPrevBtn.addEventListener('click', () => {
+      if (currentBookPageIndex <= 0) return;
+      persistCurrentBookEditorValue();
+      currentBookPageIndex -= 1;
+      renderBookState();
+    });
+
+    bookNextBtn.addEventListener('click', () => {
+      if (currentBookPageIndex >= bookState.pages.length - 1) return;
+      persistCurrentBookEditorValue();
+      currentBookPageIndex += 1;
+      renderBookState();
+    });
+
+    bookPageEditor.addEventListener('input', () => {
+      persistCurrentBookEditorValue();
+      scheduleBookSave();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (bookOverlay.hidden) return;
+      if (event.key === 'Escape') {
+        closeBookOverlay();
+        return;
+      }
+      if (event.key === 'ArrowLeft' && document.activeElement !== bookPageEditor) bookPrevBtn.click();
+      if (event.key === 'ArrowRight' && document.activeElement !== bookPageEditor) bookNextBtn.click();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (!bookLoaded) return;
+      persistCurrentBookEditorValue();
+      localStorage.setItem(BOOK_LOCAL_STORAGE_KEY, JSON.stringify(sanitizeBookState(bookState)));
+    });
+
+    loadBookState();
+  </script>
+</body>
+</html>
