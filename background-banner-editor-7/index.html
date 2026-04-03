@@ -194,6 +194,13 @@
             return Math.max(6, Math.min(baseFontSize, widthBound, heightBound));
           }
 
+          function getMobileStrokeScale(baseWidth) {
+            if (!window.__isUnifiedMobileMode) return 1;
+            const zoomFactor = Math.max(0.16, Math.min(1, scale * 0.68));
+            const widthFactor = baseWidth <= 1.5 ? 0.55 : baseWidth <= 2.5 ? 0.78 : baseWidth <= 4 ? 1.08 : 1.42;
+            return zoomFactor * widthFactor;
+          }
+
           renderBoxes = function() {
             overlay.querySelectorAll('.box').forEach((el) => el.remove());
             boxes.forEach((box) => {
@@ -208,7 +215,10 @@
               el.style.background = box.background;
               el.style.borderColor = box.borderColor;
               el.style.color = box.textColor;
-              el.style.borderWidth = box.borderWidth + 'px';
+              const displayBorderWidth = window.__isUnifiedMobileMode
+                ? Math.min(0.38, Math.max(0.08, (box.borderWidth || 0) * 0.12))
+                : Math.max(0.45, box.borderWidth);
+              el.style.borderWidth = displayBorderWidth + 'px';
               el.style.fontSize = getRenderFontSize(box, isVertical) + 'px';
               el.dataset.id = box.id;
 
@@ -268,9 +278,8 @@
               const geometry = getLineGeometry(line.id);
               if (!geometry) return;
               const pathValue = pointsToPath(geometry.points);
-              const mobileScaleRatio = window.__isUnifiedMobileMode ? Math.max(0.16, Math.min(1, scale * 0.72)) : 1;
-              const displayWidth = Math.max(0.7, line.width * mobileScaleRatio);
-              const hitWidth = Math.max(8, displayWidth + 7);
+              const displayWidth = Math.max(0.45, line.width * getMobileStrokeScale(line.width || 1));
+              const hitWidth = Math.max(7, displayWidth + 6);
 
               const group = document.createElementNS(SVG_NS, 'g');
               group.setAttribute('class', 'line-group' + (line.id === selectedLineId ? ' selected' : ''));
