@@ -38,10 +38,9 @@
             '.box {',
             '  min-width: 8px !important;',
             '  min-height: 8px !important;',
-            '  transform: translateZ(0);',
-            '  backface-visibility: hidden;',
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
+            '  contain: layout style paint;',
             '}',
             '.box-content {',
             '  width: 100% !important;',
@@ -50,8 +49,7 @@
             '  align-items: center !important;',
             '  justify-content: center !important;',
             '  text-align: center !important;',
-            '  transform: translateZ(0);',
-            '  backface-visibility: hidden;',
+            '  letter-spacing: 0.06em !important;',
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
             '}',
@@ -84,7 +82,7 @@
             '  flex: 0 0 auto !important;',
             '  width: auto !important;',
             '  max-width: 100% !important;',
-            '  margin: 0 0 0.08em 0 !important;',
+            '  margin: 0 0 0.12em 0 !important;',
             '  padding: 0 !important;',
             '  line-height: 1 !important;',
             '  text-align: center !important;',
@@ -102,7 +100,6 @@
             '  shape-rendering: geometricPrecision !important;',
             '  text-rendering: geometricPrecision !important;',
             '  image-rendering: -webkit-optimize-contrast;',
-            '  transform: translateZ(0);',
             '}',
             '.multi-select-rect {',
             '  position: absolute;',
@@ -146,7 +143,6 @@
           let groupDragBoxes = null;
           let suppressNextOverlayClick = false;
           let boxTextDirectionInput = null;
-          let boxTextSpacingInput = null;
 
           function ensureTextDirectionControl() {
             if (boxTextDirectionInput && document.body.contains(boxTextDirectionInput)) return boxTextDirectionInput;
@@ -175,42 +171,6 @@
             });
 
             return select;
-          }
-
-          function ensureTextSpacingControl() {
-            if (boxTextSpacingInput && document.body.contains(boxTextSpacingInput)) return boxTextSpacingInput;
-            const directionInput = ensureTextDirectionControl();
-            const directionRow = directionInput ? directionInput.closest('.toolbox-row') : null;
-            if (!directionRow || !directionRow.parentNode) return null;
-
-            const row = document.createElement('div');
-            row.className = 'toolbox-row';
-
-            const label = document.createElement('label');
-            label.setAttribute('for', 'boxTextSpacingInput');
-            label.textContent = 'Khoang cach chu';
-
-            const input = document.createElement('input');
-            input.id = 'boxTextSpacingInput';
-            input.type = 'number';
-            input.min = '0';
-            input.max = '40';
-            input.step = '0.1';
-            input.value = '0';
-
-            row.appendChild(label);
-            row.appendChild(input);
-            directionRow.parentNode.insertBefore(row, directionRow.nextSibling);
-            boxTextSpacingInput = input;
-
-            input.addEventListener('input', (event) => {
-              event.stopPropagation();
-              const nextValue = Math.max(0, Number(input.value) || 0);
-              input.value = String(nextValue);
-              updateSelectedBox({ textSpacing: nextValue });
-            });
-
-            return input;
           }
 
           function getStoredTextDirection(box) {
@@ -368,7 +328,6 @@
                 content.textContent = box.text;
               }
               if (isVertical) {
-                const spacingPx = Math.max(0, Number(box.textSpacing) || 0);
                 content.style.setProperty('white-space', 'normal', 'important');
                 content.style.setProperty('word-break', 'keep-all', 'important');
                 content.style.setProperty('overflow-wrap', 'normal', 'important');
@@ -383,14 +342,10 @@
                 content.style.setProperty('padding', '0', 'important');
                 content.style.setProperty('margin', '0 auto', 'important');
                 content.style.setProperty('overflow', 'hidden', 'important');
-                content.style.setProperty('row-gap', spacingPx + 'px', 'important');
               } else if (window.__isUnifiedMobileMode) {
                 content.style.whiteSpace = 'nowrap';
                 content.style.wordBreak = 'keep-all';
                 content.style.lineHeight = '1';
-                content.style.letterSpacing = `${Math.max(0, Number(box.textSpacing) || 0)}px`;
-              } else {
-                content.style.letterSpacing = `${Math.max(0, Number(box.textSpacing) || 0)}px`;
               }
               el.appendChild(content);
 
@@ -484,25 +439,20 @@
           }
 
           ensureTextDirectionControl();
-          ensureTextSpacingControl();
 
           const originalSyncToolbox = syncToolbox;
           syncToolbox = function() {
             originalSyncToolbox();
             const directionInput = ensureTextDirectionControl();
-            const spacingInput = ensureTextSpacingControl();
             if (!directionInput) return;
             const selectedBox = getSelectedBox();
             const hasBox = Boolean(selectedBox);
             directionInput.disabled = !hasBox;
-            if (spacingInput) spacingInput.disabled = !hasBox;
             if (!hasBox) {
               directionInput.value = 'horizontal';
-              if (spacingInput) spacingInput.value = '0';
               return;
             }
             directionInput.value = shouldUseVerticalText(selectedBox) ? 'vertical' : 'horizontal';
-            if (spacingInput) spacingInput.value = String(Math.max(0, Number(selectedBox.textSpacing) || 0));
           };
 
           const originalZoomAt = zoomAt;
@@ -524,6 +474,11 @@
               panY = 0;
             }
             applyTransform();
+            requestAnimationFrame(() => {
+              try {
+                renderScene();
+              } catch (error) {}
+            });
           };
 
           const originalClearSelection = clearSelection;
