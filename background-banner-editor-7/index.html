@@ -183,7 +183,7 @@
 
           shouldUseVerticalText = function(box) {
             const fontSize = box.fontSize || 20;
-            return box.height >= box.width || box.width <= fontSize * 1.35;
+            return box.height >= box.width || box.width <= Math.max(18, fontSize * 2.4);
           };
 
           function splitGraphemes(text) {
@@ -206,11 +206,11 @@
             if (isVertical) {
               const compactText = splitGraphemes(box.text || '');
               const charCount = Math.max(1, compactText.length);
-              const innerWidth = Math.max(4, box.width - 4);
-              const innerHeight = Math.max(8, box.height - 4);
-              const widthBound = innerWidth * 0.86;
-              const heightBound = innerHeight / charCount * 0.96;
-              return Math.max(2, Math.min(baseFontSize, widthBound, heightBound));
+              const innerWidth = Math.max(3, box.width - 4);
+              const innerHeight = Math.max(6, box.height - 4);
+              const widthBound = innerWidth * 0.48;
+              const heightBound = (innerHeight / charCount) * 0.78;
+              return Math.max(1, Math.min(baseFontSize, widthBound, heightBound));
             }
             if (!window.__isUnifiedMobileMode) return baseFontSize;
             const compactText = String(box.text || '').replace(/\s+/g, '');
@@ -256,8 +256,11 @@
                   const charEl = document.createElement('span');
                   charEl.textContent = char;
                   charEl.style.display = 'block';
-                  charEl.style.width = '100%';
+                  charEl.style.flex = '0 0 auto';
                   charEl.style.textAlign = 'center';
+                  charEl.style.lineHeight = '1';
+                  charEl.style.margin = '0';
+                  charEl.style.padding = '0';
                   content.appendChild(charEl);
                 });
               } else {
@@ -277,6 +280,7 @@
                 content.style.textAlign = 'center';
                 content.style.padding = '0';
                 content.style.margin = '0 auto';
+                content.style.overflow = 'hidden';
               } else if (window.__isUnifiedMobileMode) {
                 content.style.whiteSpace = 'nowrap';
                 content.style.wordBreak = 'keep-all';
