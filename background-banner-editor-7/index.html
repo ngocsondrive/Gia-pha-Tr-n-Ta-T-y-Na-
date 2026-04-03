@@ -179,7 +179,10 @@
           let groupResizeState = null;
           let suppressNextOverlayClick = false;
           let boxTextDirectionInput = null;
+          let boxSnapControls = null;
           let activeLineSegmentDrag = null;
+          let snapHorizontalEnabled = true;
+          let snapVerticalEnabled = true;
 
           function ensureTextDirectionControl() {
             if (boxTextDirectionInput && document.body.contains(boxTextDirectionInput)) return boxTextDirectionInput;
@@ -208,6 +211,35 @@
             });
 
             return select;
+          }
+
+          function ensureBoxSnapControls() {
+            if (boxSnapControls && document.body.contains(boxSnapControls.wrap)) return boxSnapControls;
+            const directionRow = ensureTextDirectionControl() ? ensureTextDirectionControl().closest('.toolbox-row') : null;
+            if (!directionRow || !directionRow.parentNode) return null;
+
+            const row = document.createElement('div');
+            row.className = 'toolbox-row';
+            row.id = 'boxSnapControls';
+            row.innerHTML = [
+              '<label>Can thang hang</label>',
+              '<div class="toolbox-actions" style="gap:8px; flex-wrap:wrap;">',
+              '  <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#5d432f;">',
+              '    <input id="snapHorizontalInput" type="checkbox" checked /> Ngang',
+              '  </label>',
+              '  <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#5d432f;">',
+              '    <input id="snapVerticalInput" type="checkbox" checked /> Doc',
+              '  </label>',
+              '</div>'
+            ].join('');
+            directionRow.parentNode.insertBefore(row, directionRow.nextSibling);
+
+            boxSnapControls = {
+              wrap: row,
+              horizontalInput: row.querySelector('#snapHorizontalInput'),
+              verticalInput: row.querySelector('#snapVerticalInput'),
+            };
+            return boxSnapControls;
           }
 
           function getStoredTextDirection(box) {
@@ -672,6 +704,17 @@
           }
 
           ensureTextDirectionControl();
+          const snapControls = ensureBoxSnapControls();
+          if (snapControls) {
+            snapControls.horizontalInput.addEventListener('input', (event) => {
+              snapHorizontalEnabled = Boolean(event.target.checked);
+              hideAlignGuide();
+            });
+            snapControls.verticalInput.addEventListener('input', (event) => {
+              snapVerticalEnabled = Boolean(event.target.checked);
+              hideAlignGuide();
+            });
+          }
 
           const originalUpdateSelectedBox = updateSelectedBox;
           updateSelectedBox = function(patch) {
@@ -706,10 +749,18 @@
           syncToolbox = function() {
             originalSyncToolbox();
             const directionInput = ensureTextDirectionControl();
+            const snapControls = ensureBoxSnapControls();
             if (!directionInput) return;
             const selectedBox = getSelectedBox();
             const hasBox = Boolean(selectedBox);
             directionInput.disabled = !hasBox;
+            if (snapControls) {
+              snapControls.wrap.style.display = hasBox ? 'grid' : 'none';
+              snapControls.horizontalInput.checked = snapHorizontalEnabled;
+              snapControls.verticalInput.checked = snapVerticalEnabled;
+              snapControls.horizontalInput.disabled = !hasBox;
+              snapControls.verticalInput.disabled = !hasBox;
+            }
             if (!hasBox) {
               directionInput.value = 'horizontal';
               return;
@@ -828,39 +879,43 @@
                 { key: 'right', value: other.x + other.width },
               ];
 
-              currentHorizontal.forEach((currentLine) => {
-                otherHorizontal.forEach((otherLine) => {
-                  const delta = otherLine.value - currentLine.value;
-                  const distance = Math.abs(delta);
-                  if (distance > SNAP_THRESHOLD) return;
-                  if (!bestHorizontal || distance < bestHorizontal.distance) {
-                    bestHorizontal = {
-                      distance,
-                      snappedY: proposedY + delta,
-                      lineY: otherLine.value,
-                      left: Math.min(proposedX, other.x),
-                      right: Math.max(proposedX + box.width, other.x + other.width),
-                    };
-                  }
+              if (snapHorizontalEnabled) {
+                currentHorizontal.forEach((currentLine) => {
+                  otherHorizontal.forEach((otherLine) => {
+                    const delta = otherLine.value - currentLine.value;
+                    const distance = Math.abs(delta);
+                    if (distance > SNAP_THRESHOLD) return;
+                    if (!bestHorizontal || distance < bestHorizontal.distance) {
+                      bestHorizontal = {
+                        distance,
+                        snappedY: proposedY + delta,
+                        lineY: otherLine.value,
+                        left: Math.min(proposedX, other.x),
+                        right: Math.max(proposedX + box.width, other.x + other.width),
+                      };
+                    }
+                  });
                 });
-              });
+              }
 
-              currentVertical.forEach((currentLine) => {
-                otherVertical.forEach((otherLine) => {
-                  const delta = otherLine.value - currentLine.value;
-                  const distance = Math.abs(delta);
-                  if (distance > SNAP_THRESHOLD) return;
-                  if (!bestVertical || distance < bestVertical.distance) {
-                    bestVertical = {
-                      distance,
-                      snappedX: proposedX + delta,
-                      lineX: otherLine.value,
-                      top: Math.min(proposedY, other.y),
-                      bottom: Math.max(proposedY + box.height, other.y + other.height),
-                    };
-                  }
+              if (snapVerticalEnabled) {
+                currentVertical.forEach((currentLine) => {
+                  otherVertical.forEach((otherLine) => {
+                    const delta = otherLine.value - currentLine.value;
+                    const distance = Math.abs(delta);
+                    if (distance > SNAP_THRESHOLD) return;
+                    if (!bestVertical || distance < bestVertical.distance) {
+                      bestVertical = {
+                        distance,
+                        snappedX: proposedX + delta,
+                        lineX: otherLine.value,
+                        top: Math.min(proposedY, other.y),
+                        bottom: Math.max(proposedY + box.height, other.y + other.height),
+                      };
+                    }
+                  });
                 });
-              });
+              }
             });
 
             box.x = bestVertical ? Math.max(0, bestVertical.snappedX) : proposedX;
