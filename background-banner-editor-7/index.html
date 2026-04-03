@@ -35,6 +35,9 @@
           const SNAP_THRESHOLD = 10;
           const style = document.createElement('style');
           style.textContent = [
+            'body, button, input, textarea, select, .toolbox, .toolbox * {',
+            '  font-family: "Times New Roman", Times, serif !important;',
+            '}',
             '.box {',
             '  min-width: 8px !important;',
             '  min-height: 8px !important;',
@@ -50,6 +53,8 @@
             '  justify-content: center !important;',
             '  text-align: center !important;',
             '  letter-spacing: 0.06em !important;',
+            '  font-family: "Times New Roman", Times, serif !important;',
+            '  text-transform: uppercase !important;',
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
             '}',
@@ -452,9 +457,10 @@
 
               const content = document.createElement('div');
               content.className = 'box-content';
+              const displayText = String(box.text || '').toUpperCase();
               if (isVertical) {
                 content.innerHTML = '';
-                splitGraphemes(box.text || '').forEach((char) => {
+                splitGraphemes(displayText).forEach((char) => {
                   const charEl = document.createElement('span');
                   charEl.textContent = char;
                   charEl.style.setProperty('display', 'block', 'important');
@@ -468,7 +474,7 @@
                   content.appendChild(charEl);
                 });
               } else {
-                content.textContent = box.text;
+                content.textContent = displayText;
               }
               if (isVertical) {
                 content.style.setProperty('white-space', 'normal', 'important');
