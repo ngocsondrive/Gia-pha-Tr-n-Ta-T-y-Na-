@@ -247,6 +247,7 @@
           }
 
           function isAdjustableZLine(line, geometry) {
+            if (line && line.pathType === 'diagonal') return false;
             if (!line || line.start?.kind !== 'box' || line.end?.kind !== 'box') return false;
             const points = geometry && geometry.points;
             return Array.isArray(points) && points.length >= 4 && Math.abs(points[0].x - points[points.length - 1].x) > 1 && Math.abs(points[0].y - points[points.length - 1].y) > 1;
@@ -370,6 +371,26 @@
             return { x: box.x + box.width, y: box.y + box.height / 2, side: 'right' };
           };
 
+          function getClosestBoxAnchors(startTarget, endTarget) {
+            if (!startTarget || !endTarget || startTarget.kind !== 'box' || endTarget.kind !== 'box') return null;
+            const startBox = boxes.find((item) => item.id === startTarget.boxId);
+            const endBox = boxes.find((item) => item.id === endTarget.boxId);
+            if (!startBox || !endBox) return null;
+            const sides = ['top', 'right', 'bottom', 'left'];
+            let best = null;
+            sides.forEach((startSide) => {
+              const startAnchor = getBoxAnchor(startBox, startSide);
+              sides.forEach((endSide) => {
+                const endAnchor = getBoxAnchor(endBox, endSide);
+                const distance = Math.hypot(endAnchor.x - startAnchor.x, endAnchor.y - startAnchor.y);
+                if (!best || distance < best.distance) {
+                  best = { start: startAnchor, end: endAnchor, distance };
+                }
+              });
+            });
+            return best ? { start: best.start, end: best.end } : null;
+          }
+
           function getRenderFontSize(box, isVertical) {
             const baseFontSize = box.fontSize || 20;
             if (isVertical) {
@@ -377,23 +398,19 @@
               const charCount = Math.max(1, compactText.length);
               const innerWidth = Math.max(3, box.width - 4);
               const innerHeight = Math.max(6, box.height - 4);
-              const widthBound = innerWidth * 0.48;
-              const heightBound = (innerHeight / charCount) * 0.78;
+              const widthBound = innerWidth * 0.52;
+              const heightBound = (innerHeight / charCount) * 0.84;
               return Math.max(1, Math.min(baseFontSize, widthBound, heightBound));
             }
-            if (!window.__isUnifiedMobileMode) return baseFontSize;
-            const compactText = String(box.text || '').replace(/\s+/g, '');
-            const textLength = Math.max(1, compactText.length);
-            const widthBound = box.width / Math.max(1.4, textLength * 0.68);
-            const heightBound = box.height * 0.62;
-            return Math.max(6, Math.min(baseFontSize, widthBound, heightBound));
+            return baseFontSize;
           }
 
           function getMobileStrokeScale(baseWidth) {
             if (!window.__isUnifiedMobileMode) return 1;
-            const zoomFactor = Math.max(0.16, Math.min(1, scale * 0.68));
-            const widthFactor = baseWidth <= 1.5 ? 0.55 : baseWidth <= 2.5 ? 0.78 : baseWidth <= 4 ? 1.08 : 1.42;
-            return zoomFactor * widthFactor;
+            if (baseWidth <= 1.5) return 0.42;
+            if (baseWidth <= 2.5) return 0.5;
+            if (baseWidth <= 4) return 0.58;
+            return 0.68;
           }
 
           getLineGeometry = function(lineId, visited = new Set()) {
@@ -412,6 +429,12 @@
               end = resolveTarget(line.end, start, nextVisited);
             }
             if (!start || !end) return null;
+
+            if (line.pathType === 'diagonal') {
+              const bestAnchors = getClosestBoxAnchors(line.start, line.end);
+              if (bestAnchors) return { line, points: [bestAnchors.start, bestAnchors.end] };
+              return { line, points: [start, end] };
+            }
 
             if (line.start?.kind !== 'box' || line.end?.kind !== 'box' || Math.abs(start.x - end.x) < 1 || Math.abs(start.y - end.y) < 1) {
               return { line, points: makeOrthogonalPath(start, end) };

@@ -166,8 +166,8 @@
     }
     .box {
       position: absolute;
-      min-width: 24px;
-      min-height: 24px;
+      min-width: 8px;
+      min-height: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -189,20 +189,23 @@
     }
     .box-content {
       width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       pointer-events: none;
       white-space: pre-wrap;
       word-break: break-word;
       line-height: 1.2;
+      text-align: center;
     }
     .box.vertical-text .box-content {
-      width: auto;
+      width: 100%;
       height: 100%;
-      white-space: normal;
-      word-break: keep-all;
-      writing-mode: vertical-rl;
-      text-orientation: upright;
+      white-space: pre-line;
+      word-break: break-word;
       line-height: 1;
-      letter-spacing: 0.08em;
+      letter-spacing: 0;
     }
     .resize-handle {
       position: absolute;
@@ -403,6 +406,7 @@
       </div>
       <div class="toolbox-actions">
         <button id="startLineBtn" class="tool-btn" type="button">Vẽ line</button>
+        <button id="startDiagonalLineBtn" class="tool-btn" type="button">Vẽ line chéo</button>
         <button id="cancelLineBtn" class="tool-btn" type="button">Hủy line</button>
         <button id="deleteSelectionBtn" class="tool-btn" type="button">Xóa chọn</button>
       </div>
@@ -413,7 +417,7 @@
       </div>
       <div class="toolbox-row">
         <label for="boxFontSizeInput">Cỡ chữ box</label>
-        <input id="boxFontSizeInput" type="number" min="10" max="80" step="1" value="20">
+        <input id="boxFontSizeInput" type="number" min="1" max="80" step="1" value="20">
       </div>
       <div class="toolbox-row">
         <label for="boxBgInput">Màu nền box</label>
@@ -439,7 +443,7 @@
         <label for="lineWidthInput">Độ dày line</label>
         <input id="lineWidthInput" type="number" min="1" max="20" step="1" value="3">
       </div>
-      <div id="toolboxState" class="empty-state">Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.</div>
+      <div id="toolboxState" class="empty-state">Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` hoặc `Vẽ line chéo` để bắt đầu.</div>
     </div>
   </aside>
 
@@ -509,6 +513,7 @@
     const addBoxBtn = document.getElementById('addBoxBtn');
     const copyBoxBtn = document.getElementById('copyBoxBtn');
     const startLineBtn = document.getElementById('startLineBtn');
+    const startDiagonalLineBtn = document.getElementById('startDiagonalLineBtn');
     const cancelLineBtn = document.getElementById('cancelLineBtn');
     const deleteSelectionBtn = document.getElementById('deleteSelectionBtn');
     const modeState = document.getElementById('modeState');
@@ -551,6 +556,7 @@
     let resizeOriginHeight = 0;
 
     let lineMode = false;
+    let lineModeKind = 'orthogonal';
     let pendingLineStart = null;
 
     function uid(prefix) {
@@ -724,11 +730,19 @@
       renderScene();
     }
 
-    function setLineMode(enabled) {
+    function getLineModeLabel() {
+      if (!lineMode) return 'Chế độ thường';
+      const prefix = lineModeKind === 'diagonal' ? 'Line chéo' : 'Line vuông';
+      return pendingLineStart ? `Chọn điểm kết thúc ${prefix.toLowerCase()}` : `Chọn điểm bắt đầu ${prefix.toLowerCase()}`;
+    }
+
+    function setLineMode(enabled, modeKind = lineModeKind) {
       lineMode = enabled;
+      lineModeKind = modeKind || 'orthogonal';
       if (!enabled) pendingLineStart = null;
-      modeState.textContent = enabled ? (pendingLineStart ? 'Chọn điểm kết thúc line' : 'Chọn điểm bắt đầu line') : 'Chế độ thường';
-      startLineBtn.style.background = enabled ? 'rgba(47,128,237,0.12)' : 'rgba(255, 248, 237, 0.96)';
+      modeState.textContent = getLineModeLabel();
+      startLineBtn.style.background = enabled && lineModeKind === 'orthogonal' ? 'rgba(47,128,237,0.12)' : 'rgba(255, 248, 237, 0.96)';
+      startDiagonalLineBtn.style.background = enabled && lineModeKind === 'diagonal' ? 'rgba(47,128,237,0.12)' : 'rgba(255, 248, 237, 0.96)';
     }
 
     function normalizeColor(value, fallback) {
@@ -737,7 +751,7 @@
 
     function shouldUseVerticalText(box) {
       const fontSize = box.fontSize || 20;
-      return box.width <= fontSize + 18;
+      return box.width <= fontSize + 12;
     }
 
     function syncToolbox() {
@@ -782,29 +796,30 @@
       } else if (!lineMode) {
         lineColorInput.value = '#8b531f';
         lineWidthInput.value = '3';
-        if (!hasBox) toolboxState.textContent = 'Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.';
+        if (!hasBox) toolboxState.textContent = 'Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` hoặc `Vẽ line chéo` để bắt đầu.';
       }
     }
 
     function renderBoxes() {
       overlay.querySelectorAll('.box').forEach((el) => el.remove());
       boxes.forEach((box) => {
+        const isVertical = shouldUseVerticalText(box);
         const el = document.createElement('div');
-        el.className = `box${box.id === selectedBoxId ? ' selected' : ''}${shouldUseVerticalText(box) ? ' vertical-text' : ''}`;
+        el.className = `box${box.id === selectedBoxId ? ' selected' : ''}${isVertical ? ' vertical-text' : ''}`;
         el.style.left = `${box.x}px`;
         el.style.top = `${box.y}px`;
         el.style.width = `${box.width}px`;
         el.style.height = `${box.height}px`;
         el.style.background = box.background;
         el.style.borderColor = box.borderColor;
+        el.style.borderWidth = `${Math.max(0.5, box.borderWidth)}px`;
         el.style.color = box.textColor;
-        el.style.borderWidth = `${box.borderWidth}px`;
         el.style.fontSize = `${box.fontSize || 20}px`;
         el.dataset.id = box.id;
 
         const content = document.createElement('div');
         content.className = 'box-content';
-        content.textContent = box.text;
+        content.textContent = box.text || '';
         el.appendChild(content);
 
         const handle = document.createElement('div');
@@ -873,6 +888,26 @@
       return uniquePoints([start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]);
     }
 
+    function getClosestBoxAnchors(startTarget, endTarget) {
+      if (!startTarget || !endTarget || startTarget.kind !== 'box' || endTarget.kind !== 'box') return null;
+      const startBox = boxes.find((item) => item.id === startTarget.boxId);
+      const endBox = boxes.find((item) => item.id === endTarget.boxId);
+      if (!startBox || !endBox) return null;
+      const sides = ['top', 'right', 'bottom', 'left'];
+      let best = null;
+      sides.forEach((startSide) => {
+        const startAnchor = getBoxAnchor(startBox, startSide);
+        sides.forEach((endSide) => {
+          const endAnchor = getBoxAnchor(endBox, endSide);
+          const distance = Math.hypot(endAnchor.x - startAnchor.x, endAnchor.y - startAnchor.y);
+          if (!best || distance < best.distance) {
+            best = { start: startAnchor, end: endAnchor, distance };
+          }
+        });
+      });
+      return best ? { start: best.start, end: best.end } : null;
+    }
+
     function pointsToPath(points) {
       return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
     }
@@ -939,6 +974,11 @@
         end = resolveTarget(line.end, start, nextVisited);
       }
       if (!start || !end) return null;
+      if (line.pathType === 'diagonal') {
+        const bestAnchors = getClosestBoxAnchors(line.start, line.end);
+        if (bestAnchors) return { line, points: [bestAnchors.start, bestAnchors.end] };
+        return { line, points: [start, end] };
+      }
       return { line, points: makeOrthogonalPath(start, end) };
     }
 
@@ -1109,8 +1149,8 @@
     function resizeActiveBox(event) {
       const box = boxes.find((item) => item.id === activeBoxId);
       if (!box) return;
-      box.width = Math.max(24, resizeOriginWidth + (event.clientX - dragStartX) / scale);
-      box.height = Math.max(24, resizeOriginHeight + (event.clientY - dragStartY) / scale);
+      box.width = Math.max(8, resizeOriginWidth + (event.clientX - dragStartX) / scale);
+      box.height = Math.max(8, resizeOriginHeight + (event.clientY - dragStartY) / scale);
       setDirty(true);
       renderScene();
     }
@@ -1123,10 +1163,10 @@
       document.body.classList.remove('is-resizing-box');
     }
 
-    function startLineMode() {
+    function startLineMode(modeKind = 'orthogonal') {
       clearSelection();
       pendingLineStart = null;
-      setLineMode(true);
+      setLineMode(true, modeKind);
       renderScene();
     }
 
@@ -1142,6 +1182,7 @@
         id: uid('line'),
         start: startTarget,
         end: endTarget,
+        pathType: lineModeKind === 'diagonal' ? 'diagonal' : 'orthogonal',
         color: lineColorInput.value,
         width: Math.max(1, Number(lineWidthInput.value) || 3),
       });
@@ -1155,8 +1196,7 @@
       const clickedSide = sideFromBoxClick(box, event);
       if (!pendingLineStart) {
         pendingLineStart = { kind: 'box', boxId: box.id, side: clickedSide };
-        setLineMode(true);
-        modeState.textContent = 'Chọn điểm kết thúc line';
+        setLineMode(true, lineModeKind);
         return;
       }
       createLine(pendingLineStart, { kind: 'box', boxId: box.id, side: 'top' });
@@ -1180,8 +1220,7 @@
       if (!target) return;
       if (!pendingLineStart) {
         pendingLineStart = target;
-        setLineMode(true);
-        modeState.textContent = 'Chọn điểm kết thúc line';
+        setLineMode(true, lineModeKind);
         return;
       }
       createLine(pendingLineStart, target);
@@ -1285,12 +1324,13 @@
     saveBtn.addEventListener('click', saveData);
     addBoxBtn.addEventListener('click', addBox);
     copyBoxBtn.addEventListener('click', copySelectedBox);
-    startLineBtn.addEventListener('click', startLineMode);
+    startLineBtn.addEventListener('click', () => startLineMode('orthogonal'));
+    startDiagonalLineBtn.addEventListener('click', () => startLineMode('diagonal'));
     cancelLineBtn.addEventListener('click', cancelLineMode);
     deleteSelectionBtn.addEventListener('click', deleteSelection);
 
     boxTextInput.addEventListener('input', () => updateSelectedBox({ text: boxTextInput.value }));
-    boxFontSizeInput.addEventListener('input', () => updateSelectedBox({ fontSize: Math.max(10, Number(boxFontSizeInput.value) || 10) }));
+    boxFontSizeInput.addEventListener('input', () => updateSelectedBox({ fontSize: Math.max(1, Number(boxFontSizeInput.value) || 1) }));
     boxBgInput.addEventListener('input', () => updateSelectedBox({ background: boxBgInput.value }));
     boxBorderInput.addEventListener('input', () => updateSelectedBox({ borderColor: boxBorderInput.value }));
     boxTextColorInput.addEventListener('input', () => updateSelectedBox({ textColor: boxTextColorInput.value }));
