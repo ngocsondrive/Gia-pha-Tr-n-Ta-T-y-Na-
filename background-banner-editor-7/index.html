@@ -63,6 +63,15 @@
             '  line-height: 1 !important;',
             '  letter-spacing: 0 !important;',
             '}',
+            '.box.vertical-text {',
+            '  padding: 1px !important;',
+            '}',
+            '.resize-handle {',
+            '  opacity: 0 !important;',
+            '  background: transparent !important;',
+            '  border-color: transparent !important;',
+            '  box-shadow: none !important;',
+            '}',
             '.lines-svg, .line-group, .line-path, .line-hit {',
             '  shape-rendering: geometricPrecision !important;',
             '  text-rendering: geometricPrecision !important;',
@@ -174,8 +183,16 @@
 
           shouldUseVerticalText = function(box) {
             const fontSize = box.fontSize || 20;
-            return box.width <= fontSize + 12;
+            return box.height >= box.width || box.width <= fontSize * 1.35;
           };
+
+          function splitGraphemes(text) {
+            const source = String(text || '').replace(/\s+/g, '');
+            if (window.Intl && Intl.Segmenter) {
+              return Array.from(new Intl.Segmenter('vi', { granularity: 'grapheme' }).segment(source), (item) => item.segment);
+            }
+            return Array.from(source);
+          }
 
           getBoxAnchor = function(box, side) {
             if (side === 'top') return { x: box.x + box.width / 2, y: box.y, side };
@@ -186,7 +203,16 @@
 
           function getRenderFontSize(box, isVertical) {
             const baseFontSize = box.fontSize || 20;
-            if (!window.__isUnifiedMobileMode || isVertical) return baseFontSize;
+            if (isVertical) {
+              const compactText = splitGraphemes(box.text || '');
+              const charCount = Math.max(1, compactText.length);
+              const innerWidth = Math.max(4, box.width - 4);
+              const innerHeight = Math.max(8, box.height - 4);
+              const widthBound = innerWidth * 0.86;
+              const heightBound = innerHeight / charCount * 0.96;
+              return Math.max(2, Math.min(baseFontSize, widthBound, heightBound));
+            }
+            if (!window.__isUnifiedMobileMode) return baseFontSize;
             const compactText = String(box.text || '').replace(/\s+/g, '');
             const textLength = Math.max(1, compactText.length);
             const widthBound = box.width / Math.max(1.4, textLength * 0.68);
@@ -224,8 +250,34 @@
 
               const content = document.createElement('div');
               content.className = 'box-content';
-              content.textContent = isVertical ? Array.from(String(box.text || '')).join('\\n') : box.text;
-              if (window.__isUnifiedMobileMode && !isVertical) {
+              if (isVertical) {
+                content.innerHTML = '';
+                splitGraphemes(box.text || '').forEach((char) => {
+                  const charEl = document.createElement('span');
+                  charEl.textContent = char;
+                  charEl.style.display = 'block';
+                  charEl.style.width = '100%';
+                  charEl.style.textAlign = 'center';
+                  content.appendChild(charEl);
+                });
+              } else {
+                content.textContent = box.text;
+              }
+              if (isVertical) {
+                content.style.whiteSpace = 'normal';
+                content.style.wordBreak = 'keep-all';
+                content.style.overflowWrap = 'normal';
+                content.style.lineHeight = '1';
+                content.style.display = 'flex';
+                content.style.flexDirection = 'column';
+                content.style.alignItems = 'center';
+                content.style.justifyContent = 'center';
+                content.style.width = '100%';
+                content.style.height = '100%';
+                content.style.textAlign = 'center';
+                content.style.padding = '0';
+                content.style.margin = '0 auto';
+              } else if (window.__isUnifiedMobileMode) {
                 content.style.whiteSpace = 'nowrap';
                 content.style.wordBreak = 'keep-all';
                 content.style.lineHeight = '1';
