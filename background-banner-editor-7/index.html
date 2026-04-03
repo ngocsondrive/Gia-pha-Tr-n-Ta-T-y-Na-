@@ -55,6 +55,14 @@
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
             '}',
+            '.toolbox-row select {',
+            '  width: 100% !important;',
+            '  padding: 10px 12px !important;',
+            '  border-radius: 12px !important;',
+            '  border: 1px solid rgba(139, 83, 31, 0.25) !important;',
+            '  background: rgba(255,255,255,0.95) !important;',
+            '  color: #4b2f17 !important;',
+            '}',
             '.box.vertical-text .box-content {',
             '  display: flex !important;',
             '  flex-direction: column !important;',
@@ -137,6 +145,40 @@
           let marqueeStart = null;
           let groupDragBoxes = null;
           let suppressNextOverlayClick = false;
+          let boxTextDirectionInput = null;
+
+          function ensureTextDirectionControl() {
+            if (boxTextDirectionInput && document.body.contains(boxTextDirectionInput)) return boxTextDirectionInput;
+            const fontSizeRow = boxFontSizeInput ? boxFontSizeInput.closest('.toolbox-row') : null;
+            if (!fontSizeRow || !fontSizeRow.parentNode) return null;
+
+            const row = document.createElement('div');
+            row.className = 'toolbox-row';
+
+            const label = document.createElement('label');
+            label.setAttribute('for', 'boxTextDirectionInput');
+            label.textContent = 'Huong chu';
+
+            const select = document.createElement('select');
+            select.id = 'boxTextDirectionInput';
+            select.innerHTML = '<option value="horizontal">Ngang</option><option value="vertical">Doc</option>';
+
+            row.appendChild(label);
+            row.appendChild(select);
+            fontSizeRow.parentNode.insertBefore(row, fontSizeRow.nextSibling);
+            boxTextDirectionInput = select;
+
+            select.addEventListener('input', (event) => {
+              event.stopPropagation();
+              updateSelectedBox({ textDirection: select.value });
+            });
+
+            return select;
+          }
+
+          function getStoredTextDirection(box) {
+            return box && box.textDirection === 'vertical' ? 'vertical' : box && box.textDirection === 'horizontal' ? 'horizontal' : null;
+          }
 
           function syncSelectedBoxes(ids) {
             multiSelectedBoxIds = new Set(ids);
@@ -200,6 +242,8 @@
           }
 
           shouldUseVerticalText = function(box) {
+            const storedDirection = getStoredTextDirection(box);
+            if (storedDirection) return storedDirection === 'vertical';
             const fontSize = box.fontSize || 20;
             return box.height >= box.width || box.width <= Math.max(18, fontSize * 2.4);
           };
@@ -396,6 +440,23 @@
               updateSelectedBox({ fontSize: nextValue });
             }, true);
           }
+
+          ensureTextDirectionControl();
+
+          const originalSyncToolbox = syncToolbox;
+          syncToolbox = function() {
+            originalSyncToolbox();
+            const directionInput = ensureTextDirectionControl();
+            if (!directionInput) return;
+            const selectedBox = getSelectedBox();
+            const hasBox = Boolean(selectedBox);
+            directionInput.disabled = !hasBox;
+            if (!hasBox) {
+              directionInput.value = 'horizontal';
+              return;
+            }
+            directionInput.value = shouldUseVerticalText(selectedBox) ? 'vertical' : 'horizontal';
+          };
 
           const originalClearSelection = clearSelection;
           clearSelection = function() {
