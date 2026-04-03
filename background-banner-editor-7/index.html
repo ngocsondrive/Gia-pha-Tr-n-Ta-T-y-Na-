@@ -129,7 +129,7 @@
             '  z-index: 36;',
             '  cursor: nwse-resize;',
             '  box-sizing: border-box;',
-            '  pointer-events: auto;',
+            '  pointer-events: none;',
             '}'
           ].join('\\n');
           document.head.appendChild(style);
@@ -282,9 +282,7 @@
             groupSelectionOutline.style.top = bounds.top + 'px';
             groupSelectionOutline.style.width = bounds.width + 'px';
             groupSelectionOutline.style.height = bounds.height + 'px';
-            groupResizeHandle.style.display = 'block';
-            groupResizeHandle.style.left = bounds.right + 'px';
-            groupResizeHandle.style.top = bounds.bottom + 'px';
+            groupResizeHandle.style.display = 'none';
           }
 
           function hideAlignGuide() {
@@ -496,6 +494,28 @@
             renderScene();
           }
 
+          function beginGroupResize(clientX, clientY) {
+            const bounds = getMultiSelectionBounds();
+            if (!bounds) return false;
+            pushHistory();
+            groupResizeState = {
+              startX: clientX,
+              startY: clientY,
+              bounds,
+              boxes: bounds.selectedBoxes.map((box) => ({
+                id: box.id,
+                x: box.x,
+                y: box.y,
+                width: box.width,
+                height: box.height,
+                fontSize: box.fontSize || 20,
+                borderWidth: box.borderWidth || 2,
+              })),
+              linesById: Object.fromEntries(lines.map((line) => [line.id, JSON.parse(JSON.stringify(line))])),
+            };
+            return true;
+          }
+
           renderLines = function() {
             linesSvg.innerHTML = '';
             lines.forEach((line) => {
@@ -546,6 +566,21 @@
           }
 
           ensureTextDirectionControl();
+
+          const originalOnResizeMouseDown = onResizeMouseDown;
+          onResizeMouseDown = function(event) {
+            if (!isLoggedIn() || lineMode) return;
+            const boxId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : null;
+            if (boxId && multiSelectedBoxIds.size > 1 && multiSelectedBoxIds.has(boxId)) {
+              activeBoxId = boxId;
+              if (beginGroupResize(event.clientX, event.clientY)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+            return originalOnResizeMouseDown(event);
+          };
 
           const originalSyncToolbox = syncToolbox;
           syncToolbox = function() {
@@ -763,30 +798,6 @@
             event.preventDefault();
             event.stopPropagation();
           }, true);
-
-          groupResizeHandle.addEventListener('mousedown', (event) => {
-            if (!isLoggedIn() || lineMode) return;
-            const bounds = getMultiSelectionBounds();
-            if (!bounds) return;
-            pushHistory();
-            groupResizeState = {
-              startX: event.clientX,
-              startY: event.clientY,
-              bounds,
-              boxes: bounds.selectedBoxes.map((box) => ({
-                id: box.id,
-                x: box.x,
-                y: box.y,
-                width: box.width,
-                height: box.height,
-                fontSize: box.fontSize || 20,
-                borderWidth: box.borderWidth || 2,
-              })),
-              linesById: Object.fromEntries(lines.map((line) => [line.id, JSON.parse(JSON.stringify(line))])),
-            };
-            event.preventDefault();
-            event.stopPropagation();
-          });
 
           window.addEventListener('mousemove', (event) => {
             if (groupResizeState) {
