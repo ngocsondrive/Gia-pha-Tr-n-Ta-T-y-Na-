@@ -443,7 +443,7 @@
         <label for="lineWidthInput">Độ dày line</label>
         <input id="lineWidthInput" type="number" min="1" max="20" step="1" value="3">
       </div>
-      <div id="toolboxState" class="empty-state">Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` hoặc `Vẽ line chéo` để bắt đầu.</div>
+      <div id="toolboxState" class="empty-state">Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.</div>
     </div>
   </aside>
 
@@ -796,7 +796,7 @@
       } else if (!lineMode) {
         lineColorInput.value = '#8b531f';
         lineWidthInput.value = '3';
-        if (!hasBox) toolboxState.textContent = 'Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` hoặc `Vẽ line chéo` để bắt đầu.';
+        if (!hasBox) toolboxState.textContent = 'Chưa chọn box hoặc line. Bấm `Tạo box` hoặc `Vẽ line` để bắt đầu.';
       }
     }
 
@@ -888,24 +888,19 @@
       return uniquePoints([start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]);
     }
 
-    function getClosestBoxAnchors(startTarget, endTarget) {
+    function getDiagonalBoxAnchors(startTarget, endTarget) {
       if (!startTarget || !endTarget || startTarget.kind !== 'box' || endTarget.kind !== 'box') return null;
       const startBox = boxes.find((item) => item.id === startTarget.boxId);
       const endBox = boxes.find((item) => item.id === endTarget.boxId);
       if (!startBox || !endBox) return null;
-      const sides = ['top', 'right', 'bottom', 'left'];
-      let best = null;
-      sides.forEach((startSide) => {
-        const startAnchor = getBoxAnchor(startBox, startSide);
-        sides.forEach((endSide) => {
-          const endAnchor = getBoxAnchor(endBox, endSide);
-          const distance = Math.hypot(endAnchor.x - startAnchor.x, endAnchor.y - startAnchor.y);
-          if (!best || distance < best.distance) {
-            best = { start: startAnchor, end: endAnchor, distance };
-          }
-        });
-      });
-      return best ? { start: best.start, end: best.end } : null;
+      const startCenterY = startBox.y + startBox.height / 2;
+      const endCenterY = endBox.y + endBox.height / 2;
+      const upperBox = startCenterY <= endCenterY ? startBox : endBox;
+      const lowerBox = upperBox.id === startBox.id ? endBox : startBox;
+      return {
+        start: getBoxAnchor(upperBox, 'bottom'),
+        end: getBoxAnchor(lowerBox, 'top'),
+      };
     }
 
     function pointsToPath(points) {
@@ -975,8 +970,8 @@
       }
       if (!start || !end) return null;
       if (line.pathType === 'diagonal') {
-        const bestAnchors = getClosestBoxAnchors(line.start, line.end);
-        if (bestAnchors) return { line, points: [bestAnchors.start, bestAnchors.end] };
+        const diagonalAnchors = getDiagonalBoxAnchors(line.start, line.end);
+        if (diagonalAnchors) return { line, points: [diagonalAnchors.start, diagonalAnchors.end] };
         return { line, points: [start, end] };
       }
       return { line, points: makeOrthogonalPath(start, end) };
