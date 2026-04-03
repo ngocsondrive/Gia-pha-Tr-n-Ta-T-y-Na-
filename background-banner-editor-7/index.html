@@ -458,6 +458,27 @@
             directionInput.value = shouldUseVerticalText(selectedBox) ? 'vertical' : 'horizontal';
           };
 
+          const originalZoomAt = zoomAt;
+          zoomAt = function(nextScale, clientX, clientY) {
+            const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
+            if (boundedScale === scale) return;
+
+            const stageRect = stage.getBoundingClientRect();
+            const localX = (clientX - stageRect.left - panX) / scale;
+            const localY = (clientY - stageRect.top - panY) / scale;
+
+            scale = boundedScale;
+            panX = clientX - stageRect.left - localX * scale;
+            panY = clientY - stageRect.top - localY * scale;
+
+            document.body.style.overflow = scale > minScale ? 'hidden' : 'auto';
+            if (scale === minScale) {
+              panX = 0;
+              panY = 0;
+            }
+            applyTransform();
+          };
+
           const originalClearSelection = clearSelection;
           clearSelection = function() {
             clearMultiSelect();
