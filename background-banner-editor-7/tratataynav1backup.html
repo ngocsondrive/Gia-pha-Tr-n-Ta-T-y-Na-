@@ -38,10 +38,9 @@
             '.box {',
             '  min-width: 8px !important;',
             '  min-height: 8px !important;',
-            '  transform: translateZ(0);',
-            '  backface-visibility: hidden;',
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
+            '  contain: layout style paint;',
             '}',
             '.box-content {',
             '  width: 100% !important;',
@@ -50,8 +49,7 @@
             '  align-items: center !important;',
             '  justify-content: center !important;',
             '  text-align: center !important;',
-            '  transform: translateZ(0);',
-            '  backface-visibility: hidden;',
+            '  letter-spacing: 0.06em !important;',
             '  -webkit-font-smoothing: antialiased;',
             '  text-rendering: geometricPrecision;',
             '}',
@@ -84,7 +82,7 @@
             '  flex: 0 0 auto !important;',
             '  width: auto !important;',
             '  max-width: 100% !important;',
-            '  margin: 0 !important;',
+            '  margin: 0 0 0.12em 0 !important;',
             '  padding: 0 !important;',
             '  line-height: 1 !important;',
             '  text-align: center !important;',
@@ -102,15 +100,36 @@
             '  shape-rendering: geometricPrecision !important;',
             '  text-rendering: geometricPrecision !important;',
             '  image-rendering: -webkit-optimize-contrast;',
-            '  transform: translateZ(0);',
             '}',
             '.multi-select-rect {',
             '  position: absolute;',
-            '  border: 2px dashed rgba(47, 128, 237, 0.9);',
+            '  border: 1px dashed rgba(47, 128, 237, 0.82);',
             '  background: rgba(47, 128, 237, 0.12);',
             '  display: none;',
             '  pointer-events: none;',
             '  z-index: 35;',
+            '}',
+            '.group-selection-outline {',
+            '  position: absolute;',
+            '  border: 1px dashed rgba(47, 128, 237, 0.82);',
+            '  display: none;',
+            '  pointer-events: none;',
+            '  z-index: 34;',
+            '}',
+            '.group-resize-handle {',
+            '  position: absolute;',
+            '  width: 14px;',
+            '  height: 14px;',
+            '  margin-left: -7px;',
+            '  margin-top: -7px;',
+            '  border-radius: 50%;',
+            '  border: 1px solid rgba(47, 128, 237, 0.9);',
+            '  background: #ffffff;',
+            '  display: none;',
+            '  z-index: 36;',
+            '  cursor: nwse-resize;',
+            '  box-sizing: border-box;',
+            '  pointer-events: none;',
             '}'
           ].join('\\n');
           document.head.appendChild(style);
@@ -124,26 +143,35 @@
           const horizontalGuide = document.createElement('div');
           horizontalGuide.style.position = 'absolute';
           horizontalGuide.style.height = '0';
-          horizontalGuide.style.borderTop = '2px dashed rgba(47, 128, 237, 0.9)';
+          horizontalGuide.style.borderTop = '1px dashed rgba(47, 128, 237, 0.82)';
           horizontalGuide.style.display = 'none';
           guideLayer.appendChild(horizontalGuide);
 
           const verticalGuide = document.createElement('div');
           verticalGuide.style.position = 'absolute';
           verticalGuide.style.width = '0';
-          verticalGuide.style.borderLeft = '2px dashed rgba(47, 128, 237, 0.9)';
+          verticalGuide.style.borderLeft = '1px dashed rgba(47, 128, 237, 0.82)';
           verticalGuide.style.display = 'none';
           guideLayer.appendChild(verticalGuide);
 
           const selectionRect = document.createElement('div');
           selectionRect.className = 'multi-select-rect';
           guideLayer.appendChild(selectionRect);
+
+          const groupSelectionOutline = document.createElement('div');
+          groupSelectionOutline.className = 'group-selection-outline';
+          guideLayer.appendChild(groupSelectionOutline);
+
+          const groupResizeHandle = document.createElement('div');
+          groupResizeHandle.className = 'group-resize-handle';
+          guideLayer.appendChild(groupResizeHandle);
           overlay.appendChild(guideLayer);
 
           let multiSelectedBoxIds = new Set();
           let isMarqueeSelecting = false;
           let marqueeStart = null;
           let groupDragBoxes = null;
+          let groupResizeState = null;
           let suppressNextOverlayClick = false;
           let boxTextDirectionInput = null;
 
@@ -191,6 +219,8 @@
           function clearMultiSelect() {
             multiSelectedBoxIds.clear();
             selectionRect.style.display = 'none';
+            groupSelectionOutline.style.display = 'none';
+            groupResizeHandle.style.display = 'none';
           }
 
           function getCanvasPoint(clientX, clientY) {
@@ -220,6 +250,39 @@
             selectionRect.style.top = rect.top + 'px';
             selectionRect.style.width = Math.max(0, rect.right - rect.left) + 'px';
             selectionRect.style.height = Math.max(0, rect.bottom - rect.top) + 'px';
+          }
+
+          function getMultiSelectionBounds() {
+            const selectedBoxes = boxes.filter((box) => multiSelectedBoxIds.has(box.id));
+            if (selectedBoxes.length <= 1) return null;
+            const left = Math.min(...selectedBoxes.map((box) => box.x));
+            const top = Math.min(...selectedBoxes.map((box) => box.y));
+            const right = Math.max(...selectedBoxes.map((box) => box.x + box.width));
+            const bottom = Math.max(...selectedBoxes.map((box) => box.y + box.height));
+            return {
+              left,
+              top,
+              right,
+              bottom,
+              width: Math.max(1, right - left),
+              height: Math.max(1, bottom - top),
+              selectedBoxes,
+            };
+          }
+
+          function renderGroupSelectionBounds() {
+            const bounds = getMultiSelectionBounds();
+            if (!bounds) {
+              groupSelectionOutline.style.display = 'none';
+              groupResizeHandle.style.display = 'none';
+              return;
+            }
+            groupSelectionOutline.style.display = 'block';
+            groupSelectionOutline.style.left = bounds.left + 'px';
+            groupSelectionOutline.style.top = bounds.top + 'px';
+            groupSelectionOutline.style.width = bounds.width + 'px';
+            groupSelectionOutline.style.height = bounds.height + 'px';
+            groupResizeHandle.style.display = 'none';
           }
 
           function hideAlignGuide() {
@@ -381,6 +444,7 @@
               handle.addEventListener('mousedown', onResizeMouseDown);
               overlay.appendChild(el);
             });
+            renderGroupSelectionBounds();
           };
 
           resizeActiveBox = function(event) {
@@ -391,6 +455,66 @@
             setDirty(true);
             renderScene();
           };
+
+          function resizeSelectedGroup(event) {
+            if (!groupResizeState) return;
+            const deltaX = (event.clientX - groupResizeState.startX) / scale;
+            const deltaY = (event.clientY - groupResizeState.startY) / scale;
+            const nextWidth = Math.max(12, groupResizeState.bounds.width + deltaX);
+            const nextHeight = Math.max(12, groupResizeState.bounds.height + deltaY);
+            const scaleX = nextWidth / groupResizeState.bounds.width;
+            const scaleY = nextHeight / groupResizeState.bounds.height;
+            const minScale = 0.08;
+
+            groupResizeState.boxes.forEach((snapshot) => {
+              const current = boxes.find((item) => item.id === snapshot.id);
+              if (!current) return;
+              current.x = Math.max(0, groupResizeState.bounds.left + (snapshot.x - groupResizeState.bounds.left) * scaleX);
+              current.y = Math.max(0, groupResizeState.bounds.top + (snapshot.y - groupResizeState.bounds.top) * scaleY);
+              current.width = Math.max(8, snapshot.width * Math.max(minScale, scaleX));
+              current.height = Math.max(8, snapshot.height * Math.max(minScale, scaleY));
+              current.fontSize = Math.max(1, snapshot.fontSize * Math.max(minScale, Math.min(scaleX, scaleY)));
+              current.borderWidth = Math.max(0.5, snapshot.borderWidth * Math.max(minScale, Math.min(scaleX, scaleY)));
+            });
+
+            lines.forEach((line) => {
+              const lineSnapshot = groupResizeState.linesById[line.id];
+              if (!lineSnapshot) return;
+              if (line.start && line.start.kind === 'point' && lineSnapshot.start && lineSnapshot.start.kind === 'point') {
+                line.start.x = groupResizeState.bounds.left + (lineSnapshot.start.x - groupResizeState.bounds.left) * scaleX;
+                line.start.y = groupResizeState.bounds.top + (lineSnapshot.start.y - groupResizeState.bounds.top) * scaleY;
+              }
+              if (line.end && line.end.kind === 'point' && lineSnapshot.end && lineSnapshot.end.kind === 'point') {
+                line.end.x = groupResizeState.bounds.left + (lineSnapshot.end.x - groupResizeState.bounds.left) * scaleX;
+                line.end.y = groupResizeState.bounds.top + (lineSnapshot.end.y - groupResizeState.bounds.top) * scaleY;
+              }
+            });
+
+            setDirty(true);
+            renderScene();
+          }
+
+          function beginGroupResize(clientX, clientY) {
+            const bounds = getMultiSelectionBounds();
+            if (!bounds) return false;
+            pushHistory();
+            groupResizeState = {
+              startX: clientX,
+              startY: clientY,
+              bounds,
+              boxes: bounds.selectedBoxes.map((box) => ({
+                id: box.id,
+                x: box.x,
+                y: box.y,
+                width: box.width,
+                height: box.height,
+                fontSize: box.fontSize || 20,
+                borderWidth: box.borderWidth || 2,
+              })),
+              linesById: Object.fromEntries(lines.map((line) => [line.id, JSON.parse(JSON.stringify(line))])),
+            };
+            return true;
+          }
 
           renderLines = function() {
             linesSvg.innerHTML = '';
@@ -443,6 +567,35 @@
 
           ensureTextDirectionControl();
 
+          const originalUpdateSelectedBox = updateSelectedBox;
+          updateSelectedBox = function(patch) {
+            if (multiSelectedBoxIds.size <= 1) {
+              return originalUpdateSelectedBox(patch);
+            }
+            const targetBoxes = boxes.filter((box) => multiSelectedBoxIds.has(box.id));
+            if (targetBoxes.length <= 1) {
+              return originalUpdateSelectedBox(patch);
+            }
+            targetBoxes.forEach((box) => Object.assign(box, patch));
+            setDirty(true);
+            renderScene();
+          };
+
+          const originalOnResizeMouseDown = onResizeMouseDown;
+          onResizeMouseDown = function(event) {
+            if (!isLoggedIn() || lineMode) return;
+            const boxId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : null;
+            if (boxId && multiSelectedBoxIds.size > 1 && multiSelectedBoxIds.has(boxId)) {
+              activeBoxId = boxId;
+              if (beginGroupResize(event.clientX, event.clientY)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+            return originalOnResizeMouseDown(event);
+          };
+
           const originalSyncToolbox = syncToolbox;
           syncToolbox = function() {
             originalSyncToolbox();
@@ -477,6 +630,11 @@
               panY = 0;
             }
             applyTransform();
+            requestAnimationFrame(() => {
+              try {
+                renderScene();
+              } catch (error) {}
+            });
           };
 
           const originalClearSelection = clearSelection;
@@ -612,6 +770,7 @@
           const originalStopBoxInteractions = stopBoxInteractions;
           stopBoxInteractions = function() {
             groupDragBoxes = null;
+            groupResizeState = null;
             hideAlignGuide();
             return originalStopBoxInteractions();
           };
@@ -655,6 +814,12 @@
           }, true);
 
           window.addEventListener('mousemove', (event) => {
+            if (groupResizeState) {
+              resizeSelectedGroup(event);
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
             if (!isMarqueeSelecting || !marqueeStart) return;
             const current = getCanvasPoint(event.clientX, event.clientY);
             const rect = normalizeRect(marqueeStart, current);
@@ -666,6 +831,13 @@
           }, true);
 
           window.addEventListener('mouseup', (event) => {
+            if (groupResizeState) {
+              groupResizeState = null;
+              renderScene();
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
             if (!isMarqueeSelecting) return;
             isMarqueeSelecting = false;
             marqueeStart = null;
