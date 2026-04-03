@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tran Ta Tay Na Editor 7</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f5e3bf;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="../background-banner-editor-6/"></iframe>
+  <script>
+    const frame = document.getElementById('appFrame');
+
+    function injectAlignmentPatch() {
+      const win = frame.contentWindow;
+      if (!win) return;
+      win.eval(`
+        if (!window.__boxAlignPatchedV2) {
+          window.__boxAlignPatchedV2 = true;
+          const SNAP_THRESHOLD = 10;
+          const style = document.createElement('style');
+          style.textContent = [
+            '.box {',
+            '  min-width: 8px !important;',
+            '  min-height: 8px !important;',
+            '  transform: translateZ(0);',
+            '  backface-visibility: hidden;',
+            '  -webkit-font-smoothing: antialiased;',
+            '  text-rendering: geometricPrecision;',
+            '}',
+            '.box-content {',
+            '  width: 100% !important;',
+            '  height: 100% !important;',
+            '  display: flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  text-align: center !important;',
+            '  transform: translateZ(0);',
+            '  backface-visibility: hidden;',
+            '  -webkit-font-smoothing: antialiased;',
+            '  text-rendering: geometricPrecision;',
+            '}',
+            '.toolbox-row select {',
+            '  width: 100% !important;',
+            '  padding: 10px 12px !important;',
+            '  border-radius: 12px !important;',
+            '  border: 1px solid rgba(139, 83, 31, 0.25) !important;',
+            '  background: rgba(255,255,255,0.95) !important;',
+            '  color: #4b2f17 !important;',
+            '}',
+            '.box.vertical-text .box-content {',
+            '  display: flex !important;',
+            '  flex-direction: column !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  width: 100% !important;',
+            '  height: 100% !important;',
+            '  white-space: pre-line !important;',
+            '  word-break: keep-all !important;',
+            '  overflow-wrap: normal !important;',
+            '  line-height: 1 !important;',
+            '  letter-spacing: 0 !important;',
+            '  text-orientation: upright !important;',
+            '  writing-mode: horizontal-tb !important;',
+            '  overflow: hidden !important;',
+            '}',
+            '.box.vertical-text .box-content > span {',
+            '  display: block !important;',
+            '  flex: 0 0 auto !important;',
+            '  width: auto !important;',
+            '  max-width: 100% !important;',
+            '  margin: 0 !important;',
+            '  padding: 0 !important;',
+            '  line-height: 1 !important;',
+            '  text-align: center !important;',
+            '}',
+            '.box.vertical-text {',
+            '  padding: 1px !important;',
+            '}',
+            '.resize-handle {',
+            '  opacity: 0 !important;',
+            '  background: transparent !important;',
+            '  border-color: transparent !important;',
+            '  box-shadow: none !important;',
+            '}',
+            '.lines-svg, .line-group, .line-path, .line-hit {',
+            '  shape-rendering: geometricPrecision !important;',
+            '  text-rendering: geometricPrecision !important;',
+            '  image-rendering: -webkit-optimize-contrast;',
+            '  transform: translateZ(0);',
+            '}',
+            '.multi-select-rect {',
+            '  position: absolute;',
+            '  border: 2px dashed rgba(47, 128, 237, 0.9);',
+            '  background: rgba(47, 128, 237, 0.12);',
+            '  display: none;',
+            '  pointer-events: none;',
+            '  z-index: 35;',
+            '}'
+          ].join('\\n');
+          document.head.appendChild(style);
+
+          const guideLayer = document.createElement('div');
+          guideLayer.style.position = 'absolute';
+          guideLayer.style.inset = '0';
+          guideLayer.style.pointerEvents = 'none';
+          guideLayer.style.zIndex = '30';
+
+          const horizontalGuide = document.createElement('div');
+          horizontalGuide.style.position = 'absolute';
+          horizontalGuide.style.height = '0';
+          horizontalGuide.style.borderTop = '2px dashed rgba(47, 128, 237, 0.9)';
+          horizontalGuide.style.display = 'none';
+          guideLayer.appendChild(horizontalGuide);
+
+          const verticalGuide = document.createElement('div');
+          verticalGuide.style.position = 'absolute';
+          verticalGuide.style.width = '0';
+          verticalGuide.style.borderLeft = '2px dashed rgba(47, 128, 237, 0.9)';
+          verticalGuide.style.display = 'none';
+          guideLayer.appendChild(verticalGuide);
+
+          const selectionRect = document.createElement('div');
+          selectionRect.className = 'multi-select-rect';
+          guideLayer.appendChild(selectionRect);
+          overlay.appendChild(guideLayer);
+
+          let multiSelectedBoxIds = new Set();
+          let isMarqueeSelecting = false;
+          let marqueeStart = null;
+          let groupDragBoxes = null;
+          let suppressNextOverlayClick = false;
+          let boxTextDirectionInput = null;
+
+          function ensureTextDirectionControl() {
+            if (boxTextDirectionInput && document.body.contains(boxTextDirectionInput)) return boxTextDirectionInput;
+            const fontSizeRow = boxFontSizeInput ? boxFontSizeInput.closest('.toolbox-row') : null;
+            if (!fontSizeRow || !fontSizeRow.parentNode) return null;
+
+            const row = document.createElement('div');
+            row.className = 'toolbox-row';
+
+            const label = document.createElement('label');
+            label.setAttribute('for', 'boxTextDirectionInput');
+            label.textContent = 'Huong chu';
+
+            const select = document.createElement('select');
+            select.id = 'boxTextDirectionInput';
+            select.innerHTML = '<option value="horizontal">Ngang</option><option value="vertical">Doc</option>';
+
+            row.appendChild(label);
+            row.appendChild(select);
+            fontSizeRow.parentNode.insertBefore(row, fontSizeRow.nextSibling);
+            boxTextDirectionInput = select;
+
+            select.addEventListener('input', (event) => {
+              event.stopPropagation();
+              updateSelectedBox({ textDirection: select.value });
+            });
+
+            return select;
+          }
+
+          function getStoredTextDirection(box) {
+            return box && box.textDirection === 'vertical' ? 'vertical' : box && box.textDirection === 'horizontal' ? 'horizontal' : null;
+          }
+
+          function syncSelectedBoxes(ids) {
+            multiSelectedBoxIds = new Set(ids);
+            if (multiSelectedBoxIds.size > 0) {
+              if (!multiSelectedBoxIds.has(selectedBoxId)) selectedBoxId = Array.from(multiSelectedBoxIds)[0];
+              selectedLineId = null;
+            }
+          }
+
+          function clearMultiSelect() {
+            multiSelectedBoxIds.clear();
+            selectionRect.style.display = 'none';
+          }
+
+          function getCanvasPoint(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+              x: (clientX - rect.left) / scale,
+              y: (clientY - rect.top) / scale,
+            };
+          }
+
+          function normalizeRect(a, b) {
+            return {
+              left: Math.min(a.x, b.x),
+              top: Math.min(a.y, b.y),
+              right: Math.max(a.x, b.x),
+              bottom: Math.max(a.y, b.y),
+            };
+          }
+
+          function boxIntersectsRect(box, rect) {
+            return !(box.x + box.width < rect.left || box.x > rect.right || box.y + box.height < rect.top || box.y > rect.bottom);
+          }
+
+          function renderSelectionRect(rect) {
+            selectionRect.style.display = 'block';
+            selectionRect.style.left = rect.left + 'px';
+            selectionRect.style.top = rect.top + 'px';
+            selectionRect.style.width = Math.max(0, rect.right - rect.left) + 'px';
+            selectionRect.style.height = Math.max(0, rect.bottom - rect.top) + 'px';
+          }
+
+          function hideAlignGuide() {
+            horizontalGuide.style.display = 'none';
+            verticalGuide.style.display = 'none';
+          }
+
+          function showHorizontalGuide(y, left, right) {
+            horizontalGuide.style.display = 'block';
+            horizontalGuide.style.top = y + 'px';
+            horizontalGuide.style.left = left + 'px';
+            horizontalGuide.style.width = Math.max(0, right - left) + 'px';
+          }
+
+          function showVerticalGuide(x, top, bottom) {
+            verticalGuide.style.display = 'block';
+            verticalGuide.style.left = x + 'px';
+            verticalGuide.style.top = top + 'px';
+            verticalGuide.style.height = Math.max(0, bottom - top) + 'px';
+          }
+
+          shouldUseVerticalText = function(box) {
+            const storedDirection = getStoredTextDirection(box);
+            if (storedDirection) return storedDirection === 'vertical';
+            const fontSize = box.fontSize || 20;
+            return box.height >= box.width || box.width <= Math.max(18, fontSize * 2.4);
+          };
+
+          function splitGraphemes(text) {
+            const source = String(text || '').replace(/\s+/g, '');
+            if (window.Intl && Intl.Segmenter) {
+              return Array.from(new Intl.Segmenter('vi', { granularity: 'grapheme' }).segment(source), (item) => item.segment);
+            }
+            return Array.from(source);
+          }
+
+          getBoxAnchor = function(box, side) {
+            if (side === 'top') return { x: box.x + box.width / 2, y: box.y, side };
+            if (side === 'bottom') return { x: box.x + box.width / 2, y: box.y + box.height, side };
+            if (side === 'left') return { x: box.x, y: box.y + box.height / 2, side };
+            return { x: box.x + box.width, y: box.y + box.height / 2, side: 'right' };
+          };
+
+          function getRenderFontSize(box, isVertical) {
+            const baseFontSize = box.fontSize || 20;
+            if (isVertical) {
+              const compactText = splitGraphemes(box.text || '');
+              const charCount = Math.max(1, compactText.length);
+              const innerWidth = Math.max(3, box.width - 4);
+              const innerHeight = Math.max(6, box.height - 4);
+              const widthBound = innerWidth * 0.48;
+              const heightBound = (innerHeight / charCount) * 0.78;
+              return Math.max(1, Math.min(baseFontSize, widthBound, heightBound));
+            }
+            if (!window.__isUnifiedMobileMode) return baseFontSize;
+            const compactText = String(box.text || '').replace(/\s+/g, '');
+            const textLength = Math.max(1, compactText.length);
+            const widthBound = box.width / Math.max(1.4, textLength * 0.68);
+            const heightBound = box.height * 0.62;
+            return Math.max(6, Math.min(baseFontSize, widthBound, heightBound));
+          }
+
+          function getMobileStrokeScale(baseWidth) {
+            if (!window.__isUnifiedMobileMode) return 1;
+            const zoomFactor = Math.max(0.16, Math.min(1, scale * 0.68));
+            const widthFactor = baseWidth <= 1.5 ? 0.55 : baseWidth <= 2.5 ? 0.78 : baseWidth <= 4 ? 1.08 : 1.42;
+            return zoomFactor * widthFactor;
+          }
+
+          renderBoxes = function() {
+            overlay.querySelectorAll('.box').forEach((el) => el.remove());
+            boxes.forEach((box) => {
+              const isVertical = shouldUseVerticalText(box);
+              const el = document.createElement('div');
+              const isSelected = box.id === selectedBoxId || multiSelectedBoxIds.has(box.id);
+              el.className = 'box' + (isSelected ? ' selected' : '') + (isVertical ? ' vertical-text' : '');
+              el.style.left = box.x + 'px';
+              el.style.top = box.y + 'px';
+              el.style.width = box.width + 'px';
+              el.style.height = box.height + 'px';
+              el.style.background = box.background;
+              el.style.borderColor = box.borderColor;
+              el.style.color = box.textColor;
+              const displayBorderWidth = window.__isUnifiedMobileMode
+                ? Math.min(0.56, Math.max(0.14, (box.borderWidth || 0) * 0.18))
+                : Math.max(0.45, box.borderWidth);
+              el.style.borderWidth = displayBorderWidth + 'px';
+              el.style.fontSize = getRenderFontSize(box, isVertical) + 'px';
+              el.dataset.id = box.id;
+
+              const content = document.createElement('div');
+              content.className = 'box-content';
+              if (isVertical) {
+                content.innerHTML = '';
+                splitGraphemes(box.text || '').forEach((char) => {
+                  const charEl = document.createElement('span');
+                  charEl.textContent = char;
+                  charEl.style.setProperty('display', 'block', 'important');
+                  charEl.style.setProperty('flex', '0 0 auto', 'important');
+                  charEl.style.setProperty('width', 'auto', 'important');
+                  charEl.style.setProperty('max-width', '100%', 'important');
+                  charEl.style.setProperty('text-align', 'center', 'important');
+                  charEl.style.setProperty('line-height', '1', 'important');
+                  charEl.style.setProperty('margin', '0', 'important');
+                  charEl.style.setProperty('padding', '0', 'important');
+                  content.appendChild(charEl);
+                });
+              } else {
+                content.textContent = box.text;
+              }
+              if (isVertical) {
+                content.style.setProperty('white-space', 'normal', 'important');
+                content.style.setProperty('word-break', 'keep-all', 'important');
+                content.style.setProperty('overflow-wrap', 'normal', 'important');
+                content.style.setProperty('line-height', '1', 'important');
+                content.style.setProperty('display', 'flex', 'important');
+                content.style.setProperty('flex-direction', 'column', 'important');
+                content.style.setProperty('align-items', 'center', 'important');
+                content.style.setProperty('justify-content', 'center', 'important');
+                content.style.setProperty('width', '100%', 'important');
+                content.style.setProperty('height', '100%', 'important');
+                content.style.setProperty('text-align', 'center', 'important');
+                content.style.setProperty('padding', '0', 'important');
+                content.style.setProperty('margin', '0 auto', 'important');
+                content.style.setProperty('overflow', 'hidden', 'important');
+              } else if (window.__isUnifiedMobileMode) {
+                content.style.whiteSpace = 'nowrap';
+                content.style.wordBreak = 'keep-all';
+                content.style.lineHeight = '1';
+              }
+              el.appendChild(content);
+
+              const handle = document.createElement('div');
+              handle.className = 'resize-handle';
+              handle.dataset.id = box.id;
+              el.appendChild(handle);
+
+              el.addEventListener('mousedown', onBoxMouseDown);
+              el.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (lineMode) {
+                  handleLineTargetBox(box, event);
+                  return;
+                }
+                if (event.ctrlKey || event.metaKey) {
+                  if (multiSelectedBoxIds.has(box.id)) {
+                    multiSelectedBoxIds.delete(box.id);
+                    if (selectedBoxId === box.id) selectedBoxId = Array.from(multiSelectedBoxIds)[0] || null;
+                    renderScene();
+                    return;
+                  }
+                  syncSelectedBoxes([...multiSelectedBoxIds, box.id]);
+                  renderScene();
+                  return;
+                }
+                syncSelectedBoxes([box.id]);
+                renderScene();
+              });
+              handle.addEventListener('mousedown', onResizeMouseDown);
+              overlay.appendChild(el);
+            });
+          };
+
+          resizeActiveBox = function(event) {
+            const box = boxes.find((item) => item.id === activeBoxId);
+            if (!box) return;
+            box.width = Math.max(8, resizeOriginWidth + (event.clientX - dragStartX) / scale);
+            box.height = Math.max(8, resizeOriginHeight + (event.clientY - dragStartY) / scale);
+            setDirty(true);
+            renderScene();
+          };
+
+          renderLines = function() {
+            linesSvg.innerHTML = '';
+            lines.forEach((line) => {
+              const geometry = getLineGeometry(line.id);
+              if (!geometry) return;
+              const pathValue = pointsToPath(geometry.points);
+              const displayWidth = Math.max(0.45, line.width * getMobileStrokeScale(line.width || 1));
+              const hitWidth = Math.max(7, displayWidth + 6);
+
+              const group = document.createElementNS(SVG_NS, 'g');
+              group.setAttribute('class', 'line-group' + (line.id === selectedLineId ? ' selected' : ''));
+
+              const hit = document.createElementNS(SVG_NS, 'path');
+              hit.setAttribute('d', pathValue);
+              hit.setAttribute('class', 'line-hit');
+              hit.setAttribute('vector-effect', 'non-scaling-stroke');
+              hit.setAttribute('stroke-width', String(hitWidth));
+              hit.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (lineMode) {
+                  handleLineTargetLine(line, event);
+                  return;
+                }
+                selectLine(line.id);
+              });
+
+              const path = document.createElementNS(SVG_NS, 'path');
+              path.setAttribute('d', pathValue);
+              path.setAttribute('class', 'line-path');
+              path.setAttribute('stroke', line.color);
+              path.setAttribute('stroke-width', String(displayWidth));
+              path.setAttribute('vector-effect', 'non-scaling-stroke');
+
+              group.appendChild(hit);
+              group.appendChild(path);
+              linesSvg.appendChild(group);
+            });
+          };
+
+          if (boxFontSizeInput) {
+            boxFontSizeInput.min = '1';
+            boxFontSizeInput.addEventListener('input', (event) => {
+              event.stopImmediatePropagation();
+              const nextValue = Math.max(1, Number(boxFontSizeInput.value) || 1);
+              boxFontSizeInput.value = String(nextValue);
+              updateSelectedBox({ fontSize: nextValue });
+            }, true);
+          }
+
+          ensureTextDirectionControl();
+
+          const originalSyncToolbox = syncToolbox;
+          syncToolbox = function() {
+            originalSyncToolbox();
+            const directionInput = ensureTextDirectionControl();
+            if (!directionInput) return;
+            const selectedBox = getSelectedBox();
+            const hasBox = Boolean(selectedBox);
+            directionInput.disabled = !hasBox;
+            if (!hasBox) {
+              directionInput.value = 'horizontal';
+              return;
+            }
+            directionInput.value = shouldUseVerticalText(selectedBox) ? 'vertical' : 'horizontal';
+          };
+
+          const originalZoomAt = zoomAt;
+          zoomAt = function(nextScale, clientX, clientY) {
+            const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
+            if (boundedScale === scale) return;
+
+            const stageRect = stage.getBoundingClientRect();
+            const localX = (clientX - stageRect.left - panX) / scale;
+            const localY = (clientY - stageRect.top - panY) / scale;
+
+            scale = boundedScale;
+            panX = clientX - stageRect.left - localX * scale;
+            panY = clientY - stageRect.top - localY * scale;
+
+            document.body.style.overflow = scale > minScale ? 'hidden' : 'auto';
+            if (scale === minScale) {
+              panX = 0;
+              panY = 0;
+            }
+            applyTransform();
+          };
+
+          const originalClearSelection = clearSelection;
+          clearSelection = function() {
+            clearMultiSelect();
+            return originalClearSelection();
+          };
+
+          onBoxMouseDown = function(event) {
+            if (!isLoggedIn() || lineMode) return;
+            if (event.target.classList.contains('resize-handle')) return;
+            if (event.button !== 0) return;
+            const id = event.currentTarget.dataset.id;
+            const box = boxes.find((item) => item.id === id);
+            if (!box) return;
+            pushHistory();
+            if (!multiSelectedBoxIds.has(id)) {
+              syncSelectedBoxes([id]);
+              renderScene();
+            } else {
+              selectedBoxId = id;
+              selectedLineId = null;
+            }
+            isDraggingBox = true;
+            activeBoxId = id;
+            dragStartX = event.clientX;
+            dragStartY = event.clientY;
+            dragOriginX = box.x;
+            dragOriginY = box.y;
+            groupDragBoxes = multiSelectedBoxIds.size > 1 && multiSelectedBoxIds.has(id)
+              ? boxes.filter((item) => multiSelectedBoxIds.has(item.id)).map((item) => ({ id: item.id, x: item.x, y: item.y }))
+              : null;
+            document.body.classList.add('is-dragging-box');
+            event.preventDefault();
+            event.stopPropagation();
+          };
+
+          const originalMoveActiveBox = moveActiveBox;
+          moveActiveBox = function(event) {
+            const box = boxes.find((item) => item.id === activeBoxId);
+            if (!box) return originalMoveActiveBox(event);
+
+            if (groupDragBoxes && groupDragBoxes.length > 1) {
+              const deltaX = (event.clientX - dragStartX) / scale;
+              const deltaY = (event.clientY - dragStartY) / scale;
+              groupDragBoxes.forEach((snapshot) => {
+                const current = boxes.find((item) => item.id === snapshot.id);
+                if (!current) return;
+                current.x = Math.max(0, snapshot.x + deltaX);
+                current.y = Math.max(0, snapshot.y + deltaY);
+              });
+              setDirty(true);
+              renderScene();
+              hideAlignGuide();
+              return;
+            }
+
+            let proposedX = Math.max(0, dragOriginX + (event.clientX - dragStartX) / scale);
+            let proposedY = Math.max(0, dragOriginY + (event.clientY - dragStartY) / scale);
+
+            const currentHorizontal = [
+              { key: 'top', value: proposedY },
+              { key: 'center', value: proposedY + box.height / 2 },
+              { key: 'bottom', value: proposedY + box.height },
+            ];
+
+            const currentVertical = [
+              { key: 'left', value: proposedX },
+              { key: 'center', value: proposedX + box.width / 2 },
+              { key: 'right', value: proposedX + box.width },
+            ];
+
+            let bestHorizontal = null;
+            let bestVertical = null;
+            boxes.forEach((other) => {
+              if (other.id === activeBoxId) return;
+              const otherHorizontal = [
+                { key: 'top', value: other.y },
+                { key: 'center', value: other.y + other.height / 2 },
+                { key: 'bottom', value: other.y + other.height },
+              ];
+              const otherVertical = [
+                { key: 'left', value: other.x },
+                { key: 'center', value: other.x + other.width / 2 },
+                { key: 'right', value: other.x + other.width },
+              ];
+
+              currentHorizontal.forEach((currentLine) => {
+                otherHorizontal.forEach((otherLine) => {
+                  const delta = otherLine.value - currentLine.value;
+                  const distance = Math.abs(delta);
+                  if (distance > SNAP_THRESHOLD) return;
+                  if (!bestHorizontal || distance < bestHorizontal.distance) {
+                    bestHorizontal = {
+                      distance,
+                      snappedY: proposedY + delta,
+                      lineY: otherLine.value,
+                      left: Math.min(proposedX, other.x),
+                      right: Math.max(proposedX + box.width, other.x + other.width),
+                    };
+                  }
+                });
+              });
+
+              currentVertical.forEach((currentLine) => {
+                otherVertical.forEach((otherLine) => {
+                  const delta = otherLine.value - currentLine.value;
+                  const distance = Math.abs(delta);
+                  if (distance > SNAP_THRESHOLD) return;
+                  if (!bestVertical || distance < bestVertical.distance) {
+                    bestVertical = {
+                      distance,
+                      snappedX: proposedX + delta,
+                      lineX: otherLine.value,
+                      top: Math.min(proposedY, other.y),
+                      bottom: Math.max(proposedY + box.height, other.y + other.height),
+                    };
+                  }
+                });
+              });
+            });
+
+            box.x = bestVertical ? Math.max(0, bestVertical.snappedX) : proposedX;
+            box.y = bestHorizontal ? Math.max(0, bestHorizontal.snappedY) : proposedY;
+            setDirty(true);
+            renderScene();
+
+            hideAlignGuide();
+            if (bestHorizontal) showHorizontalGuide(bestHorizontal.lineY, bestHorizontal.left, bestHorizontal.right);
+            if (bestVertical) showVerticalGuide(bestVertical.lineX, bestVertical.top, bestVertical.bottom);
+          };
+
+          const originalStopBoxInteractions = stopBoxInteractions;
+          stopBoxInteractions = function() {
+            groupDragBoxes = null;
+            hideAlignGuide();
+            return originalStopBoxInteractions();
+          };
+
+          const originalDeleteSelection = deleteSelection;
+          deleteSelection = function() {
+            if (multiSelectedBoxIds.size > 1) {
+              pushHistory();
+              const ids = new Set(multiSelectedBoxIds);
+              boxes = boxes.filter((box) => !ids.has(box.id));
+              lines = lines.filter((line) => !ids.has(line.start.boxId) && !ids.has(line.end.boxId));
+              clearMultiSelect();
+              selectedBoxId = null;
+              selectedLineId = null;
+              setDirty(true);
+              renderScene();
+              return;
+            }
+            return originalDeleteSelection();
+          };
+
+          overlay.addEventListener('click', (event) => {
+            if (!suppressNextOverlayClick) return;
+            suppressNextOverlayClick = false;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }, true);
+
+          overlay.addEventListener('mousedown', (event) => {
+            if (!isLoggedIn() || lineMode) return;
+            if (event.button !== 0) return;
+            if (event.target !== overlay && event.target !== linesSvg) return;
+            isMarqueeSelecting = true;
+            marqueeStart = getCanvasPoint(event.clientX, event.clientY);
+            clearMultiSelect();
+            selectedBoxId = null;
+            selectedLineId = null;
+            renderSelectionRect({ left: marqueeStart.x, top: marqueeStart.y, right: marqueeStart.x, bottom: marqueeStart.y });
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+
+          window.addEventListener('mousemove', (event) => {
+            if (!isMarqueeSelecting || !marqueeStart) return;
+            const current = getCanvasPoint(event.clientX, event.clientY);
+            const rect = normalizeRect(marqueeStart, current);
+            renderSelectionRect(rect);
+            syncSelectedBoxes(boxes.filter((box) => boxIntersectsRect(box, rect)).map((box) => box.id));
+            renderScene();
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+
+          window.addEventListener('mouseup', (event) => {
+            if (!isMarqueeSelecting) return;
+            isMarqueeSelecting = false;
+            marqueeStart = null;
+            suppressNextOverlayClick = true;
+            selectionRect.style.display = 'none';
+            renderScene();
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+        }
+      `);
+    }
+
+    frame.addEventListener('load', injectAlignmentPatch);
+  </script>
+</body>
+</html>
