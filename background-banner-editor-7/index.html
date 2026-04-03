@@ -268,6 +268,9 @@
               const geometry = getLineGeometry(line.id);
               if (!geometry) return;
               const pathValue = pointsToPath(geometry.points);
+              const mobileScaleRatio = window.__isUnifiedMobileMode ? Math.max(0.16, Math.min(1, scale * 0.72)) : 1;
+              const displayWidth = Math.max(0.7, line.width * mobileScaleRatio);
+              const hitWidth = Math.max(8, displayWidth + 7);
 
               const group = document.createElementNS(SVG_NS, 'g');
               group.setAttribute('class', 'line-group' + (line.id === selectedLineId ? ' selected' : ''));
@@ -276,7 +279,7 @@
               hit.setAttribute('d', pathValue);
               hit.setAttribute('class', 'line-hit');
               hit.setAttribute('vector-effect', 'non-scaling-stroke');
-              hit.setAttribute('stroke-width', String(Math.max(14, (line.width || 1) + 10)));
+              hit.setAttribute('stroke-width', String(hitWidth));
               hit.addEventListener('click', (event) => {
                 event.stopPropagation();
                 if (lineMode) {
@@ -290,7 +293,7 @@
               path.setAttribute('d', pathValue);
               path.setAttribute('class', 'line-path');
               path.setAttribute('stroke', line.color);
-              path.setAttribute('stroke-width', String(line.width));
+              path.setAttribute('stroke-width', String(displayWidth));
               path.setAttribute('vector-effect', 'non-scaling-stroke');
 
               group.appendChild(hit);
