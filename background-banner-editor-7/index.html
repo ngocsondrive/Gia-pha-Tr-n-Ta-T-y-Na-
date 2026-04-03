@@ -567,6 +567,20 @@
 
           ensureTextDirectionControl();
 
+          const originalUpdateSelectedBox = updateSelectedBox;
+          updateSelectedBox = function(patch) {
+            if (multiSelectedBoxIds.size <= 1) {
+              return originalUpdateSelectedBox(patch);
+            }
+            const targetBoxes = boxes.filter((box) => multiSelectedBoxIds.has(box.id));
+            if (targetBoxes.length <= 1) {
+              return originalUpdateSelectedBox(patch);
+            }
+            targetBoxes.forEach((box) => Object.assign(box, patch));
+            setDirty(true);
+            renderScene();
+          };
+
           const originalOnResizeMouseDown = onResizeMouseDown;
           onResizeMouseDown = function(event) {
             if (!isLoggedIn() || lineMode) return;
