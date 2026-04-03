@@ -184,6 +184,16 @@
             return { x: box.x + box.width, y: box.y + box.height / 2, side: 'right' };
           };
 
+          function getRenderFontSize(box, isVertical) {
+            const baseFontSize = box.fontSize || 20;
+            if (!window.__isUnifiedMobileMode || isVertical) return baseFontSize;
+            const compactText = String(box.text || '').replace(/\s+/g, '');
+            const textLength = Math.max(1, compactText.length);
+            const widthBound = box.width / Math.max(1.4, textLength * 0.68);
+            const heightBound = box.height * 0.62;
+            return Math.max(6, Math.min(baseFontSize, widthBound, heightBound));
+          }
+
           renderBoxes = function() {
             overlay.querySelectorAll('.box').forEach((el) => el.remove());
             boxes.forEach((box) => {
@@ -199,12 +209,17 @@
               el.style.borderColor = box.borderColor;
               el.style.color = box.textColor;
               el.style.borderWidth = box.borderWidth + 'px';
-              el.style.fontSize = (box.fontSize || 20) + 'px';
+              el.style.fontSize = getRenderFontSize(box, isVertical) + 'px';
               el.dataset.id = box.id;
 
               const content = document.createElement('div');
               content.className = 'box-content';
               content.textContent = isVertical ? Array.from(String(box.text || '')).join('\\n') : box.text;
+              if (window.__isUnifiedMobileMode && !isVertical) {
+                content.style.whiteSpace = 'nowrap';
+                content.style.wordBreak = 'keep-all';
+                content.style.lineHeight = '1';
+              }
               el.appendChild(content);
 
               const handle = document.createElement('div');
@@ -245,6 +260,43 @@
             box.height = Math.max(8, resizeOriginHeight + (event.clientY - dragStartY) / scale);
             setDirty(true);
             renderScene();
+          };
+
+          renderLines = function() {
+            linesSvg.innerHTML = '';
+            lines.forEach((line) => {
+              const geometry = getLineGeometry(line.id);
+              if (!geometry) return;
+              const pathValue = pointsToPath(geometry.points);
+
+              const group = document.createElementNS(SVG_NS, 'g');
+              group.setAttribute('class', 'line-group' + (line.id === selectedLineId ? ' selected' : ''));
+
+              const hit = document.createElementNS(SVG_NS, 'path');
+              hit.setAttribute('d', pathValue);
+              hit.setAttribute('class', 'line-hit');
+              hit.setAttribute('vector-effect', 'non-scaling-stroke');
+              hit.setAttribute('stroke-width', String(Math.max(14, (line.width || 1) + 10)));
+              hit.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (lineMode) {
+                  handleLineTargetLine(line, event);
+                  return;
+                }
+                selectLine(line.id);
+              });
+
+              const path = document.createElementNS(SVG_NS, 'path');
+              path.setAttribute('d', pathValue);
+              path.setAttribute('class', 'line-path');
+              path.setAttribute('stroke', line.color);
+              path.setAttribute('stroke-width', String(line.width));
+              path.setAttribute('vector-effect', 'non-scaling-stroke');
+
+              group.appendChild(hit);
+              group.appendChild(path);
+              linesSvg.appendChild(group);
+            });
           };
 
           if (boxFontSizeInput) {
