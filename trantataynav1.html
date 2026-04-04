@@ -193,7 +193,16 @@
     }
 
     function sanitizeLine(line) {
-      return { id: String(line.id || ''), start: sanitizeAnchor(line.start), end: sanitizeAnchor(line.end), color: /^#[0-9a-fA-F]{6}$/.test(line.color) ? line.color : '#8b531f', width: Math.max(1, Number(line.width) || 3) };
+      const cleanLine = {
+        id: String(line.id || ''),
+        start: sanitizeAnchor(line.start),
+        end: sanitizeAnchor(line.end),
+        color: /^#[0-9a-fA-F]{6}$/.test(line.color) ? line.color : '#8b531f',
+        width: Math.max(1, Number(line.width) || 3),
+      };
+      if (line?.pathType === 'diagonal') cleanLine.pathType = 'diagonal';
+      if (Number.isFinite(Number(line?.middleSegmentCoord))) cleanLine.middleSegmentCoord = Number(line.middleSegmentCoord);
+      return cleanLine;
     }
 
     function sanitizePayload(payload) {
