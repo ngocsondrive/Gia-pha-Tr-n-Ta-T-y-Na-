@@ -334,10 +334,10 @@
             if (isUnifiedMobileViewer) {
               linePaths.forEach((path) => {
                 const baseWidth = Number(path.getAttribute('stroke-width')) || 1;
-                path.style.strokeWidth = String(Math.max(0.7, (baseWidth * 0.68) / Math.max(scale, mobileDefaultScale || 1)));
+                path.style.strokeWidth = String(Math.max(0.55, (baseWidth * 0.5) / Math.max(scale, mobileDefaultScale || 1)));
               });
               lineHits.forEach((path) => {
-                path.style.strokeWidth = String(Math.max(12, 18 / Math.max(scale, mobileDefaultScale || 1)));
+                path.style.strokeWidth = String(Math.max(10, 14 / Math.max(scale, mobileDefaultScale || 1)));
               });
               return;
             }
@@ -428,15 +428,9 @@
               if (event.touches.length === 1) {
                 mobileTouchState = { type: 'pan', startX: event.touches[0].clientX, startY: event.touches[0].clientY, basePanX: panX, basePanY: panY };
               } else if (event.touches.length === 2) {
-                const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-                const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
                 mobileTouchState = {
-                  type: 'pinch', baseScale: scale, basePanX: panX, basePanY: panY,
+                  type: 'pinch',
                   distance: Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY),
-                  centerX,
-                  centerY,
-                  anchorWorldX: (centerX - panX) / Math.max(scale, 0.0001),
-                  anchorWorldY: (centerY - panY) / Math.max(scale, 0.0001),
                 };
                 event.preventDefault();
               }
@@ -453,9 +447,15 @@
                 const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
                 const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
                 const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
-                scale = Math.max(mobileDefaultScale, Math.min(maxScale, mobileTouchState.baseScale * (distance / mobileTouchState.distance)));
-                panX = centerX - (mobileTouchState.anchorWorldX * scale);
-                panY = centerY - (mobileTouchState.anchorWorldY * scale);
+                const nextScale = Math.max(mobileDefaultScale, Math.min(maxScale, scale * (distance / Math.max(mobileTouchState.distance, 0.0001))));
+                const rect = canvas.getBoundingClientRect();
+                const pointX = centerX - rect.left;
+                const pointY = centerY - rect.top;
+                const ratio = nextScale / Math.max(scale, 0.0001);
+                panX = centerX - pointX * ratio;
+                panY = centerY - pointY * ratio;
+                scale = nextScale;
+                mobileTouchState.distance = distance;
                 if (scale <= mobileDefaultScale + 0.0001) {
                   resetMobileViewport();
                 } else {
