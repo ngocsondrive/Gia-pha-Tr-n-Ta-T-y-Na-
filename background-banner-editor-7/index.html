@@ -120,8 +120,7 @@
             '  display: none;',
             '  pointer-events: none;',
             '  z-index: 34;',
-            '}',
-            '.group-resize-handle {',
+            '}',' .group-resize-handle {',
             '  position: absolute;',
             '  width: 14px;',
             '  height: 14px;',
@@ -402,10 +401,7 @@
 
           function getMobileStrokeScale(baseWidth) {
             if (!window.__isUnifiedMobileMode) return 1;
-            if (baseWidth <= 1.5) return 0.42;
-            if (baseWidth <= 2.5) return 0.5;
-            if (baseWidth <= 4) return 0.58;
-            return 0.68;
+            return (0.18 + Math.max(0, baseWidth) * 0.38) / Math.max(baseWidth, 0.0001);
           }
 
           getLineGeometry = function(lineId, visited = new Set()) {
@@ -655,7 +651,7 @@
               const geometry = getLineGeometry(line.id);
               if (!geometry) return;
               const pathValue = pointsToPath(geometry.points);
-              const displayWidth = Math.max(0.45, line.width * getMobileStrokeScale(line.width || 1));
+              const displayWidth = Math.max(0.28, line.width * getMobileStrokeScale(line.width || 1));
               const hitWidth = Math.max(7, displayWidth + 6);
 
               const group = document.createElementNS(SVG_NS, 'g');
