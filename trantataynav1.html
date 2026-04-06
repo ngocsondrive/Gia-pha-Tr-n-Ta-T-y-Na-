@@ -61,19 +61,19 @@
       min-height: 42px;
       max-width: min(64vw, 360px);
       padding: 10px 14px;
-      border: 1px solid rgba(41, 98, 63, 0.34);
+      border: 1px solid rgba(107, 61, 22, 0.22);
       border-radius: 999px;
-      background: linear-gradient(180deg, rgba(73, 140, 94, 0.96) 0%, rgba(52, 112, 72, 0.96) 100%);
-      color: #f5fff3;
+      background: rgba(255, 250, 240, 0.94);
+      color: #6b3d16;
       font-size: 13px;
       font-weight: 700;
       line-height: 1.25;
-      box-shadow: 0 14px 32px rgba(35, 84, 52, 0.24);
+      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.16);
       backdrop-filter: blur(8px);
       cursor: pointer;
     }
     .book-trigger:hover {
-      background: linear-gradient(180deg, rgba(82, 154, 105, 0.98) 0%, rgba(60, 124, 80, 0.98) 100%);
+      background: rgba(255, 247, 232, 0.98);
     }
     .book-panel[hidden] {
       display: none !important;
@@ -448,4 +448,5 @@
         color: /^#[0-9a-fA-F]{6}$/.test(line.color) ? line.color : '#8b531f',
         width: Math.max(1, Number(line.width) || 3),
       };
-      if (line?.pathType === 'diagon
+      if (line?.pathType === 'diagonal') cleanLine.pathType = 'diagonal';
+      if (Number.isFinite(Number(line?.middleSegmentCoord))) cleanLine.mid
