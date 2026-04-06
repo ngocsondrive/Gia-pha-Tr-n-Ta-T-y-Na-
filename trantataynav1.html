@@ -558,7 +558,7 @@
       if (isBookEditMode && isBookEditable()) {
         bookEditor.value = pageText;
       } else {
-        bookContent.innerHTML = escapeHtml(pageText || 'Trang này chưa có nội dung.').replace(/\n/g, '<br>');
+        bookContent.innerHTML = escapeHtml(pageText);
       }
       syncBookPermissionButtonsOnly();
     }
@@ -568,48 +568,38 @@
       bookData.pages[currentBookPage] = bookEditor.value.replace(/\r\n/g, '\n');
     }
 
-    async function ensureBookLoaded() {
-      if (hasBookLoaded) return;
-      setBookStatus('Đang tải sách...');
-      try {
-        const remoteBook = await fetchBookDocument();
-        bookData = sanitizeBookPayload(remoteBook || bookData);
-        hasBookLoaded = true;
-        setBookStatus('Đã tải sách gia phả.');
-      } catch (error) {
-        console.error(error);
-        hasBookLoaded = true;
-        bookData = sanitizeBookPayload(bookData);
-        setBookStatus('Không tải được sách từ cloud, đang dùng nội dung hiện có.', true);
-      }
-      renderBookPage();
-    }
-
     function openBookPanel() {
       bookPanel.hidden = false;
-      document.body.style.overflow = 'hidden';
-      ensureBookLoaded();
       renderBookPage();
     }
 
     function closeBookPanel() {
-      updateCurrentPageDraft();
       bookPanel.hidden = true;
-      document.body.style.overflow = 'hidden';
-      isBookEditMode = false;
+    }
+
+    async function loadBook() {
+      setBookStatus('Đang tải sách...');
+      try {
+        const remote = await fetchBookDocument();
+        bookData = sanitizeBookPayload(remote || bookData);
+        hasBookLoaded = true;
+        setBookStatus('');
+      } catch (error) {
+        console.error(error);
+        hasBookLoaded = false;
+        setBookStatus('Không tải được sách từ cloud.', true);
+      }
       renderBookPage();
     }
 
     async function saveCurrentBook() {
-      if (!isBookEditable()) {
-        setBookStatus('Bạn cần đăng nhập trong trình chỉnh sửa để lưu sách.', true);
-        return;
-      }
+      if (!isBookEditable() || !isBookEditMode) return;
       updateCurrentPageDraft();
       setBookStatus('Đang lưu sách...');
       try {
         bookData = await saveBookDocument(bookData);
-        setBookStatus('Đã lưu sách gia phả.');
+        hasBookLoaded = true;
+        setBookStatus('Đã lưu sách.');
         renderBookPage();
       } catch (error) {
         console.error(error);
@@ -618,30 +608,27 @@
     }
 
     async function findEditorWindow() {
-      let currentWin = frame.contentWindow;
-      for (let depth = 0; depth < 4; depth += 1) {
-        if (!currentWin) throw new Error('Không truy cập được editor');
-        const currentDoc = currentWin.document;
-        injectBaseStyles(currentDoc);
-        if (typeof currentWin.loadData === 'function' && typeof currentWin.saveData === 'function' && typeof currentWin.setDirty === 'function') return currentWin;
-        const nestedFrame = currentDoc.getElementById('appFrame');
-        if (!nestedFrame) break;
-        if (!nestedFrame.contentWindow || !nestedFrame.contentDocument || nestedFrame.contentDocument.readyState !== 'complete') {
-          await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('Editor tải quá lâu')), 12000);
-            nestedFrame.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
-          });
-        }
-        currentWin = nestedFrame.contentWindow;
-      }
-      throw new Error('Không tìm thấy editor thật');
+      if (frame.contentWindow) return frame.contentWindow;
+      return new Promise((resolve, reject) => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (frame.contentWindow) {
+            clearInterval(timer);
+            resolve(frame.contentWindow);
+          } else if (Date.now() - started > 15000) {
+            clearInterval(timer);
+            reject(new Error('Không tìm thấy editor window'));
+          }
+        }, 50);
+      });
     }
 
-    function patchEditor(editorWin) {
-      editorWin.eval(`
-        if (!window.__desktopEditMobileViewPatchV11) {
-          window.__desktopEditMobileViewPatchV11 = true;
-          const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
+    function patchEditor(win) {
+      if (!win || win.__mobileViewPatchedV8) return;
+      win.__mobileViewPatchedV8 = true;
+      win.eval(`
+        if (!window.__mobileViewInnerPatchedV8) {
+          window.__mobileViewInnerPatchedV8 = true;
           let isUnifiedMobileViewer = false;
           let toolboxDragState = null;
           let coordInputs = null;
@@ -660,27 +647,25 @@
           }
 
           function getDisplaySpace() {
-            if (isUnifiedMobileViewer) return getImageSpace();
-            return {
-              width: window.innerWidth,
-              height: image.offsetHeight || image.naturalHeight || window.innerHeight,
-            };
+            const width = canvas.offsetWidth || image.clientWidth || image.width || window.innerWidth;
+            const height = canvas.offsetHeight || image.clientHeight || image.height || window.innerHeight;
+            return { width, height };
           }
 
           function getSafeSpace(space, fallback) {
-            if (space && Number(space.width) > 0 && Number(space.height) > 0) {
-              return { width: Number(space.width), height: Number(space.height) };
-            }
+            if (space && Number.isFinite(space.width) && Number.isFinite(space.height) && space.width > 0 && space.height > 0) return space;
             return fallback;
-          }
-
-          function scalePoint(point, scaleX, scaleY) {
-            return { ...point, x: (point.x || 0) * scaleX, y: (point.y || 0) * scaleY };
           }
 
           function scaleAnchor(anchor, scaleX, scaleY) {
             if (!anchor) return anchor;
-            if (anchor.kind === 'point') return scalePoint(anchor, scaleX, scaleY);
+            if (anchor.kind === 'point') {
+              return {
+                ...anchor,
+                x: anchor.x * scaleX,
+                y: anchor.y * scaleY,
+              };
+            }
             return { ...anchor };
           }
 
@@ -842,11 +827,18 @@
               if (event.touches.length === 1) {
                 mobileTouchState = { type: 'pan', startX: event.touches[0].clientX, startY: event.touches[0].clientY, basePanX: panX, basePanY: panY };
               } else if (event.touches.length === 2) {
+                const stageRect = stage.getBoundingClientRect();
+                const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+                const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+                const localCenterX = centerX - stageRect.left;
+                const localCenterY = centerY - stageRect.top;
                 mobileTouchState = {
                   type: 'pinch', baseScale: scale, basePanX: panX, basePanY: panY,
                   distance: Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY),
-                  centerX: (event.touches[0].clientX + event.touches[1].clientX) / 2,
-                  centerY: (event.touches[0].clientY + event.touches[1].clientY) / 2,
+                  centerX: localCenterX,
+                  centerY: localCenterY,
+                  anchorWorldX: (localCenterX - panX) / Math.max(scale, 0.0001),
+                  anchorWorldY: (localCenterY - panY) / Math.max(scale, 0.0001),
                 };
                 event.preventDefault();
               }
@@ -860,12 +852,13 @@
                 classicApplyTransform();
                 event.preventDefault();
               } else if (mobileTouchState.type === 'pinch' && event.touches.length === 2) {
+                const stageRect = stage.getBoundingClientRect();
                 const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
-                const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-                const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+                const centerX = ((event.touches[0].clientX + event.touches[1].clientX) / 2) - stageRect.left;
+                const centerY = ((event.touches[0].clientY + event.touches[1].clientY) / 2) - stageRect.top;
                 scale = Math.max(mobileDefaultScale, Math.min(maxScale, mobileTouchState.baseScale * (distance / mobileTouchState.distance)));
-                panX = mobileTouchState.basePanX + (centerX - mobileTouchState.centerX);
-                panY = mobileTouchState.basePanY + (centerY - mobileTouchState.centerY);
+                panX = centerX - (mobileTouchState.anchorWorldX * scale);
+                panY = centerY - (mobileTouchState.anchorWorldY * scale);
                 if (scale <= mobileDefaultScale + 0.0001) {
                   resetMobileViewport();
                 } else {
