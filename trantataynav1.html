@@ -61,19 +61,19 @@
       min-height: 42px;
       max-width: min(64vw, 360px);
       padding: 10px 14px;
-      border: 1px solid rgba(107, 61, 22, 0.22);
+      border: 1px solid rgba(41, 98, 63, 0.34);
       border-radius: 999px;
-      background: rgba(255, 250, 240, 0.94);
-      color: #6b3d16;
+      background: linear-gradient(180deg, rgba(73, 140, 94, 0.96) 0%, rgba(52, 112, 72, 0.96) 100%);
+      color: #f5fff3;
       font-size: 13px;
       font-weight: 700;
       line-height: 1.25;
-      box-shadow: 0 14px 32px rgba(86, 48, 18, 0.16);
+      box-shadow: 0 14px 32px rgba(35, 84, 52, 0.24);
       backdrop-filter: blur(8px);
       cursor: pointer;
     }
     .book-trigger:hover {
-      background: rgba(255, 247, 232, 0.98);
+      background: linear-gradient(180deg, rgba(82, 154, 105, 0.98) 0%, rgba(60, 124, 80, 0.98) 100%);
     }
     .book-panel[hidden] {
       display: none !important;
@@ -282,7 +282,7 @@
         <button id="editBookBtn" class="book-btn" type="button">Chỉnh sửa</button>
         <button id="addPageBtn" class="book-btn" type="button">Thêm trang</button>
         <button id="removePageBtn" class="book-btn" type="button">Xóa trang</button>
-        <button id="saveBookBtn" class="book-btn" type="button">Lưu sách</button>
+        <button id="saveBookBtn" class="book-btn" type="button">Lưu sách</buttton>
       </div>
       <div class="book-body">
         <div class="book-paper">
@@ -299,7 +299,7 @@
 
   <script>
     const SUPABASE_URL = 'https://fvusljteqeoytdcoxaao.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dXNsanRlcWVveXRkY294YWFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDM3MTksImV4cCI6MjA5MDUxOTcxOX0.-6wTksnJflmerln8aajmXS74FH8OXgJBqlNSp4CNPZ0';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dXNsanRlcWVveXRldGNveGFhbyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc0OTQzNzE5LCJleHAiOjIwOTA1MTk3MTl9.-6wTksnJflmerln8aajmXS74FH8OXgJBqlNSp4CNPZ0';
     const TABLE_NAME = 'tree_documents';
     const DOCUMENT_ID = 'classic-main';
     const BOOK_DOCUMENT_ID = 'family-book-main';
@@ -324,7 +324,7 @@
     const bookAuthNote = document.getElementById('bookAuthNote');
 
     let editorWindowRef = null;
-    let bookData = { title: 'Đọc Gia Phả Dòng Tộc Trần Tả Tây Nạ', pages: [''] };
+    let bookData = { title: 'Đãc Gia Phả Dòng Tộc Trần Tả Tây Nạ', pages: [''] };
     let currentBookPage = 0;
     let isBookEditMode = false;
     let hasBookLoaded = false;
@@ -434,12 +434,10 @@
         borderWidth: Math.max(0, Number(box.borderWidth) || 2),
       };
     }
-
     function sanitizeAnchor(anchor) {
       if (anchor && anchor.kind === 'box') return { kind: 'box', boxId: String(anchor.boxId || ''), side: ['left', 'right', 'top', 'bottom'].includes(anchor.side) ? anchor.side : 'top' };
       return { kind: 'point', x: Number(anchor?.x) || 0, y: Number(anchor?.y) || 0, side: ['left', 'right', 'top', 'bottom'].includes(anchor?.side) ? anchor.side : 'right' };
     }
-
     function sanitizeLine(line) {
       const cleanLine = {
         id: String(line.id || ''),
@@ -452,30 +450,20 @@
       if (Number.isFinite(Number(line?.middleSegmentCoord))) cleanLine.middleSegmentCoord = Number(line.middleSegmentCoord);
       return cleanLine;
     }
-
     function sanitizePayload(payload) {
-      return {
-        boxes: Array.isArray(payload?.boxes) ? payload.boxes.map(sanitizeBox) : [],
-        lines: Array.isArray(payload?.lines) ? payload.lines.map(sanitizeLine) : [],
-        meta: payload?.meta && typeof payload.meta === 'object' ? payload.meta : {},
-      };
+      return { boxes: Array.isArray(payload?.boxes) ? payload.boxes.map(sanitizeBox) : [], lines: Array.isArray(payload?.lines) ? payload.lines.map(sanitizeLine) : [], meta: payload?.meta && typeof payload.meta === 'object' ? payload.meta : {} };
     }
-
     function sanitizeBookPayload(payload) {
-      const title = String(payload?.title || 'Đọc Gia Phả Dòng Tộc Trần Tả Tây Nạ').trim() || 'Đọc Gia Phả Dòng Tộc Trần Tả Tây Nạ';
-      const pages = Array.isArray(payload?.pages)
-        ? payload.pages.map((page) => String(page ?? '')).map((page) => page.replace(/\r\n/g, '\n'))
-        : [''];
+      const title = String(payload?.title || 'Đãc Gia Phả Dòng Tộc Trần Tả Tây Nạ').trim() || 'Đãc Gia Phả Dòng Tộc Trần Tả Tây Nạ';
+      const pages = Array.isArray(payload?.pages) ? payload.pages.map((page) => String(page ?? '')).map((page) => page.replace(/\r\n/g, '\n')) : [''];
       return { title, pages: pages.length ? pages : [''] };
     }
-
     async function fetchRemoteDocument() {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${encodeURIComponent(DOCUMENT_ID)}&select=data`, { headers: supabaseHeaders() });
       if (!response.ok) throw new Error(`Fetch failed: ${response.status} ${await response.text()}`);
       const rows = await response.json();
       return rows[0]?.data || null;
     }
-
     async function saveRemoteDocument(payload) {
       const cleanPayload = sanitizePayload(payload);
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
@@ -486,20 +474,17 @@
       if (!response.ok) throw new Error(`Save failed: ${response.status} ${await response.text()}`);
       return cleanPayload;
     }
-
     async function verifyRemoteDocument(payload) {
       const expected = sanitizePayload(payload);
       const remote = sanitizePayload(await fetchRemoteDocument());
-      if (JSON.stringify(expected) !== JSON.stringify(remote)) throw new Error('Supabase trả về dữ liệu khác với dữ liệu vừa lưu');
+      if (JSON.stringify(expected) !== JSON.stringify(remote)) throw new Error('Supabase trả về dữ liệu khác với dữ liệu vừla lưu');
     }
-
     async function fetchBookDocument() {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${encodeURIComponent(BOOK_DOCUMENT_ID)}&select=data`, { headers: supabaseHeaders() });
-      if (!response.ok) throw new Error(`Book fetch failed: ${response.status} ${await response.text()}`);
+      if (!response.ok) throw new Error(@book fetch failed: ${response.status} ${await response.text()}`);
       const rows = await response.json();
       return rows[0]?.data || null;
     }
-
     async function saveBookDocument(payload) {
       const cleanPayload = sanitizeBookPayload(payload);
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
@@ -510,41 +495,28 @@
       if (!response.ok) throw new Error(`Book save failed: ${response.status} ${await response.text()}`);
       return cleanPayload;
     }
-
     function escapeHtml(value) {
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+      return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
-
     function setBookStatus(text, isError = false) {
       bookStatus.textContent = text || '';
       bookStatus.style.color = isError ? '#b1442b' : '#80522b';
     }
-
     function isBookEditable() {
       return Boolean(editorWindowRef && typeof editorWindowRef.isLoggedIn === 'function' && editorWindowRef.isLoggedIn());
     }
-
     function clampBookPage() {
       if (!bookData.pages.length) bookData.pages = [''];
       currentBookPage = Math.max(0, Math.min(currentBookPage, bookData.pages.length - 1));
     }
-
     function syncBookPermissionButtonsOnly() {
       const editable = isBookEditable();
       editBookBtn.disabled = !editable;
       saveBookBtn.disabled = !editable || !isBookEditMode;
       addPageBtn.disabled = !editable || !isBookEditMode;
       removePageBtn.disabled = !editable || !isBookEditMode || bookData.pages.length <= 1;
-      bookAuthNote.textContent = editable
-        ? 'Đang đăng nhập. Bạn có thể chỉnh sửa nội dung sách.'
-        : 'Chỉ đọc. Đăng nhập trong trình chỉnh sửa để mở quyền chỉnh sửa nội dung sách.';
+      bookAuthNote.textContent = editable ? 'Đang đăng nhập. Bạn có thể chỉnh sửa nội dung sách.' : 'Chỉ đ���c. Đăng nhập trong trình chỉnh sửa Đë mở quyền chỉnh sửa nội dung sách.';
     }
-
     function renderBookPage() {
       clampBookPage();
       const pageText = bookData.pages[currentBookPage] || '';
@@ -555,27 +527,21 @@
       editBookBtn.textContent = isBookEditMode ? 'Xem sách' : 'Chỉnh sửa';
       bookEditor.hidden = !isBookEditMode || !isBookEditable();
       bookContent.hidden = isBookEditMode && isBookEditable();
-      if (isBookEditMode && isBookEditable()) {
-        bookEditor.value = pageText;
-      } else {
-        bookContent.innerHTML = escapeHtml(pageText || 'Trang này chưa có nội dung.').replace(/\n/g, '<br>');
-      }
+      if (isBookEditMode && isBookEditable()) { bookEditor.value = pageText; } else { bookContent.innerHTML = escapeHtml(pageText || 'Trang này chưa có nội dung.').replace(/\n/g, '<br>'); }
       syncBookPermissionButtonsOnly();
     }
-
     function updateCurrentPageDraft() {
       if (!isBookEditMode || !isBookEditable()) return;
       bookData.pages[currentBookPage] = bookEditor.value.replace(/\r\n/g, '\n');
     }
-
     async function ensureBookLoaded() {
       if (hasBookLoaded) return;
-      setBookStatus('Đang tải sách...');
+      setBookStatus('Đ�ng tải sách...');
       try {
         const remoteBook = await fetchBookDocument();
         bookData = sanitizeBookPayload(remoteBook || bookData);
         hasBookLoaded = true;
-        setBookStatus('Đã tải sách gia phả.');
+        setBookStatus('Đả tải sách gia phả.');
       } catch (error) {
         console.error(error);
         hasBookLoaded = true;
@@ -584,14 +550,12 @@
       }
       renderBookPage();
     }
-
     function openBookPanel() {
       bookPanel.hidden = false;
       document.body.style.overflow = 'hidden';
       ensureBookLoaded();
       renderBookPage();
     }
-
     function closeBookPanel() {
       updateCurrentPageDraft();
       bookPanel.hidden = true;
@@ -599,570 +563,5 @@
       isBookEditMode = false;
       renderBookPage();
     }
-
     async function saveCurrentBook() {
-      if (!isBookEditable()) {
-        setBookStatus('Bạn cần đăng nhập trong trình chỉnh sửa để lưu sách.', true);
-        return;
-      }
-      updateCurrentPageDraft();
-      setBookStatus('Đang lưu sách...');
-      try {
-        bookData = await saveBookDocument(bookData);
-        setBookStatus('Đã lưu sách gia phả.');
-        renderBookPage();
-      } catch (error) {
-        console.error(error);
-        setBookStatus('Lưu sách thất bại.', true);
-      }
-    }
-
-    async function findEditorWindow() {
-      let currentWin = frame.contentWindow;
-      for (let depth = 0; depth < 4; depth += 1) {
-        if (!currentWin) throw new Error('Không truy cập được editor');
-        const currentDoc = currentWin.document;
-        injectBaseStyles(currentDoc);
-        if (typeof currentWin.loadData === 'function' && typeof currentWin.saveData === 'function' && typeof currentWin.setDirty === 'function') return currentWin;
-        const nestedFrame = currentDoc.getElementById('appFrame');
-        if (!nestedFrame) break;
-        if (!nestedFrame.contentWindow || !nestedFrame.contentDocument || nestedFrame.contentDocument.readyState !== 'complete') {
-          await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('Editor tải quá lâu')), 12000);
-            nestedFrame.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
-          });
-        }
-        currentWin = nestedFrame.contentWindow;
-      }
-      throw new Error('Không tìm thấy editor thật');
-    }
-
-    function patchEditor(editorWin) {
-      editorWin.eval(`
-        if (!window.__desktopEditMobileViewPatchV11) {
-          window.__desktopEditMobileViewPatchV11 = true;
-          const LOCAL_STORAGE_KEY = '${LOCAL_STORAGE_KEY}';
-          let isUnifiedMobileViewer = false;
-          let toolboxDragState = null;
-          let coordInputs = null;
-          let mobileDefaultScale = null;
-          let mobileTouchState = null;
-          let runtimeDisplaySpace = null;
-          const classicSetBaseSize = setBaseSize;
-          const classicApplyTransform = applyTransform;
-          const classicZoomAt = zoomAt;
-          const classicLoadData = loadData;
-
-          function getImageSpace() {
-            const width = image.naturalWidth || image.width || window.innerWidth;
-            const height = image.naturalHeight || image.height || window.innerHeight;
-            return { width, height };
-          }
-
-          function getDisplaySpace() {
-            if (isUnifiedMobileViewer) return getImageSpace();
-            return {
-              width: window.innerWidth,
-              height: image.offsetHeight || image.naturalHeight || window.innerHeight,
-            };
-          }
-
-          function getSafeSpace(space, fallback) {
-            if (space && Number(space.width) > 0 && Number(space.height) > 0) {
-              return { width: Number(space.width), height: Number(space.height) };
-            }
-            return fallback;
-          }
-
-          function scalePoint(point, scaleX, scaleY) {
-            return { ...point, x: (point.x || 0) * scaleX, y: (point.y || 0) * scaleY };
-          }
-
-          function scaleAnchor(anchor, scaleX, scaleY) {
-            if (!anchor) return anchor;
-            if (anchor.kind === 'point') return scalePoint(anchor, scaleX, scaleY);
-            return { ...anchor };
-          }
-
-          function scaleState(state, sourceSpace, targetSpace) {
-            const source = getSafeSpace(sourceSpace, getImageSpace());
-            const target = getSafeSpace(targetSpace, source);
-            const scaleX = target.width / source.width;
-            const scaleY = target.height / source.height;
-            return {
-              boxes: (state.boxes || []).map((box) => ({
-                ...box,
-                x: box.x * scaleX,
-                y: box.y * scaleY,
-                width: box.width * scaleX,
-                height: box.height * scaleY,
-                fontSize: box.fontSize * Math.min(scaleX, scaleY),
-                borderWidth: Math.max(1, box.borderWidth * Math.min(scaleX, scaleY)),
-              })),
-              lines: (state.lines || []).map((line) => ({
-                ...line,
-                start: scaleAnchor(line.start, scaleX, scaleY),
-                end: scaleAnchor(line.end, scaleX, scaleY),
-                width: Math.max(1, line.width * Math.min(scaleX, scaleY)),
-              })),
-            };
-          }
-
-          function exportSceneState() {
-            return {
-              boxes: boxes.map((box) => ({ ...box })),
-              lines: lines.map((line) => ({ ...line })),
-            };
-          }
-
-          function applyStateToScene(state, sourceSpace, targetSpace) {
-            const scaled = scaleState(state, sourceSpace, targetSpace);
-            boxes = scaled.boxes;
-            lines = scaled.lines;
-            runtimeDisplaySpace = getSafeSpace(targetSpace, getDisplaySpace());
-          }
-
-          function normalizeSceneForDisplay(nextDisplaySpace) {
-            const target = getSafeSpace(nextDisplaySpace, getDisplaySpace());
-            const source = getSafeSpace(runtimeDisplaySpace, target);
-            if (Math.abs(source.width - target.width) < 0.5 && Math.abs(source.height - target.height) < 0.5) {
-              runtimeDisplaySpace = target;
-              return;
-            }
-            const scaled = scaleState(exportSceneState(), source, target);
-            boxes = scaled.boxes;
-            lines = scaled.lines;
-            runtimeDisplaySpace = target;
-          }
-
-          function createPersistedPayload() {
-            const displaySpace = getSafeSpace(runtimeDisplaySpace, getDisplaySpace());
-            const imageSpace = getImageSpace();
-            const scaled = scaleState(exportSceneState(), displaySpace, imageSpace);
-            return {
-              boxes: scaled.boxes,
-              lines: scaled.lines,
-              meta: { coordSpace: imageSpace },
-            };
-          }
-
-          function setSyncState(text, isError = false) {
-            if (!saveState) return;
-            saveState.style.display = 'flex';
-            saveState.textContent = text;
-            saveState.style.background = isError ? 'rgba(208, 86, 42, 0.12)' : 'rgba(39, 174, 96, 0.12)';
-            saveState.style.color = isError ? '#9a3d1f' : '#1f7a45';
-            saveState.style.borderColor = isError ? 'rgba(208, 86, 42, 0.22)' : 'rgba(39, 174, 96, 0.22)';
-          }
-
-          function resetMobileViewport() {
-            scale = mobileDefaultScale;
-            panX = 0;
-            panY = 0;
-            clampPan();
-            classicApplyTransform();
-          }
-
-          function clampPan() {
-            const imageWidth = image.naturalWidth || image.width || window.innerWidth;
-            const imageHeight = image.naturalHeight || image.height || window.innerHeight;
-            const viewport = window.top.__mobileViewGetViewportV8 ? window.top.__mobileViewGetViewportV8() : { width: window.innerWidth, height: window.innerHeight };
-            const minPanX = Math.min(0, viewport.width - imageWidth * scale);
-            const minPanY = Math.min(0, viewport.height - imageHeight * scale);
-            panX = Math.max(minPanX, Math.min(0, panX));
-            panY = Math.max(minPanY, Math.min(0, panY));
-          }
-
-          function installToolboxDrag() {
-            const toolbox = document.getElementById('toolbox');
-            const header = toolbox && toolbox.querySelector('.toolbox-header');
-            if (!toolbox || !header || header.querySelector('.toolbox-drag-btn')) return;
-            toolbox.style.position = 'fixed';
-            const dragBtn = document.createElement('button');
-            dragBtn.type = 'button';
-            dragBtn.className = 'toolbox-drag-btn';
-            dragBtn.textContent = 'Di chuyen';
-            header.insertBefore(dragBtn, header.firstChild);
-            dragBtn.addEventListener('pointerdown', (event) => {
-              if (isUnifiedMobileViewer) return;
-              toolboxDragState = {
-                startX: event.clientX,
-                startY: event.clientY,
-                originLeft: toolbox.getBoundingClientRect().left,
-                originTop: toolbox.getBoundingClientRect().top,
-              };
-              toolbox.classList.add('dragging');
-              toolbox.style.left = toolboxDragState.originLeft + 'px';
-              toolbox.style.top = toolboxDragState.originTop + 'px';
-              toolbox.style.right = 'auto';
-              dragBtn.setPointerCapture(event.pointerId);
-              event.preventDefault();
-            });
-            dragBtn.addEventListener('pointermove', (event) => {
-              if (!toolboxDragState) return;
-              const nextLeft = Math.max(8, Math.min(window.innerWidth - toolbox.offsetWidth - 8, toolboxDragState.originLeft + (event.clientX - toolboxDragState.startX)));
-              const nextTop = Math.max(56, Math.min(window.innerHeight - 120, toolboxDragState.originTop + (event.clientY - toolboxDragState.startY)));
-              toolbox.style.left = nextLeft + 'px';
-              toolbox.style.top = nextTop + 'px';
-            });
-            function endDrag(event) {
-              if (!toolboxDragState) return;
-              toolboxDragState = null;
-              toolbox.classList.remove('dragging');
-              try { dragBtn.releasePointerCapture(event.pointerId); } catch {}
-            }
-            dragBtn.addEventListener('pointerup', endDrag);
-            dragBtn.addEventListener('pointercancel', endDrag);
-          }
-
-          function ensureCoordinateInputs() {
-            if (coordInputs) return coordInputs;
-            const toolboxGrid = document.querySelector('.toolbox-grid');
-            const toolboxStateEl = document.getElementById('toolboxState');
-            if (!toolboxGrid || !toolboxStateEl) return null;
-            const wrap = document.createElement('div');
-            wrap.className = 'toolbox-actions';
-            wrap.innerHTML = '<div class="toolbox-row" style="flex:1; min-width:110px;"><label for="boxXInput">Toa do X</label><input id="boxXInput" type="number" step="1" /></div><div class="toolbox-row" style="flex:1; min-width:110px;"><label for="boxYInput">Toa do Y</label><input id="boxYInput" type="number" step="1" /></div>';
-            toolboxGrid.insertBefore(wrap, toolboxStateEl);
-            const xInput = wrap.querySelector('#boxXInput');
-            const yInput = wrap.querySelector('#boxYInput');
-            xInput.addEventListener('input', () => { const box = getSelectedBox(); if (!box) return; updateSelectedBox({ x: Number(xInput.value) || 0 }); });
-            yInput.addEventListener('input', () => { const box = getSelectedBox(); if (!box) return; updateSelectedBox({ y: Number(yInput.value) || 0 }); });
-            coordInputs = { xInput, yInput };
-            return coordInputs;
-          }
-
-          function installMobileTouchHandlers() {
-            if (window.__mobileTouchHandlersInstalled) return;
-            window.__mobileTouchHandlersInstalled = true;
-            window.addEventListener('gesturestart', (event) => { if (!isUnifiedMobileViewer) return; event.preventDefault(); }, { passive: false });
-            window.addEventListener('gesturechange', (event) => { if (!isUnifiedMobileViewer) return; event.preventDefault(); }, { passive: false });
-            window.addEventListener('touchstart', (event) => {
-              if (!isUnifiedMobileViewer) return;
-              if (event.touches.length === 1) {
-                mobileTouchState = { type: 'pan', startX: event.touches[0].clientX, startY: event.touches[0].clientY, basePanX: panX, basePanY: panY };
-              } else if (event.touches.length === 2) {
-                mobileTouchState = {
-                  type: 'pinch', baseScale: scale, basePanX: panX, basePanY: panY,
-                  distance: Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY),
-                  centerX: (event.touches[0].clientX + event.touches[1].clientX) / 2,
-                  centerY: (event.touches[0].clientY + event.touches[1].clientY) / 2,
-                };
-                event.preventDefault();
-              }
-            }, { passive: false });
-            window.addEventListener('touchmove', (event) => {
-              if (!isUnifiedMobileViewer || !mobileTouchState) return;
-              if (mobileTouchState.type === 'pan' && event.touches.length === 1) {
-                panX = mobileTouchState.basePanX + (event.touches[0].clientX - mobileTouchState.startX);
-                panY = mobileTouchState.basePanY + (event.touches[0].clientY - mobileTouchState.startY);
-                clampPan();
-                classicApplyTransform();
-                event.preventDefault();
-              } else if (mobileTouchState.type === 'pinch' && event.touches.length === 2) {
-                const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
-                const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-                const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
-                scale = Math.max(mobileDefaultScale, Math.min(maxScale, mobileTouchState.baseScale * (distance / mobileTouchState.distance)));
-                panX = mobileTouchState.basePanX + (centerX - mobileTouchState.centerX);
-                panY = mobileTouchState.basePanY + (centerY - mobileTouchState.centerY);
-                if (scale <= mobileDefaultScale + 0.0001) {
-                  resetMobileViewport();
-                } else {
-                  clampPan();
-                  classicApplyTransform();
-                }
-                event.preventDefault();
-              }
-            }, { passive: false });
-            window.addEventListener('touchend', () => {
-              if (!isUnifiedMobileViewer) return;
-              if (scale <= mobileDefaultScale + 0.0001) resetMobileViewport();
-              mobileTouchState = null;
-            }, { passive: true });
-          }
-
-          function fitMobileView() {
-            const imageSpace = getImageSpace();
-            canvas.style.width = imageSpace.width + 'px';
-            overlay.style.width = imageSpace.width + 'px';
-            overlay.style.height = imageSpace.height + 'px';
-            linesSvg.setAttribute('viewBox', '0 0 ' + imageSpace.width + ' ' + imageSpace.height);
-            normalizeSceneForDisplay(imageSpace);
-            const viewport = window.top.__mobileViewGetViewportV8 ? window.top.__mobileViewGetViewportV8() : { width: window.innerWidth, height: window.innerHeight };
-            const baseScale = viewport.width / imageSpace.width;
-            minScale = baseScale;
-            maxScale = Math.max(baseScale * 4, 4);
-            scale = baseScale;
-            mobileDefaultScale = baseScale;
-            panX = 0;
-            panY = 0;
-            clampPan();
-            stage.style.overflow = 'hidden';
-            document.body.style.overflow = 'hidden';
-            classicApplyTransform();
-            renderScene();
-          }
-
-          function fitDesktopClassic() {
-            stage.style.height = window.innerHeight + 'px';
-            stage.style.overflowX = 'hidden';
-            stage.style.overflowY = 'auto';
-            stage.style.overscrollBehavior = 'contain';
-            document.body.style.overflow = 'hidden';
-            if (document.documentElement) document.documentElement.style.overflow = 'hidden';
-            const result = classicSetBaseSize();
-            normalizeSceneForDisplay(getDisplaySpace());
-            scale = minScale;
-            panX = 0;
-            panY = 0;
-            classicApplyTransform();
-            stage.scrollTop = Math.max(0, Math.min(stage.scrollTop, stage.scrollHeight - stage.clientHeight));
-            renderScene();
-            return result;
-          }
-
-          function setViewerLikeMode(active) {
-            isUnifiedMobileViewer = active;
-            const topbar = document.querySelector('.topbar');
-            const toolbox = document.getElementById('toolbox');
-            const miniToolbox = document.getElementById('miniToolbox');
-            const hint = document.querySelector('.hint');
-            const loginBtn = document.getElementById('loginBtn');
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (topbar) topbar.style.display = active ? 'none' : 'flex';
-            if (toolbox) { toolbox.classList.remove('open'); toolbox.style.display = active ? 'none' : ''; }
-            if (miniToolbox) { miniToolbox.classList.remove('show'); miniToolbox.style.display = active ? 'none' : ''; }
-            if (hint) hint.style.display = 'none';
-            if (loginBtn) loginBtn.style.display = active ? 'none' : '';
-            if (logoutBtn) logoutBtn.style.display = active ? 'none' : (logoutBtn.hidden ? 'none' : '');
-            if (active) {
-              lineMode = false;
-              pendingLineStart = null;
-              selectedBoxId = null;
-              selectedLineId = null;
-              renderScene();
-            }
-          }
-
-          const originalSyncToolbox = syncToolbox;
-          syncToolbox = function() {
-            originalSyncToolbox();
-            const controls = ensureCoordinateInputs();
-            if (!controls) return;
-            const box = getSelectedBox();
-            controls.xInput.disabled = !box;
-            controls.yInput.disabled = !box;
-            controls.xInput.value = box ? Math.round(box.x) : '';
-            controls.yInput.value = box ? Math.round(box.y) : '';
-          };
-
-          applyTransform = function() {
-            if (isUnifiedMobileViewer) clampPan();
-            classicApplyTransform();
-          };
-
-          zoomAt = function(nextScale, clientX, clientY) {
-            classicZoomAt(nextScale, clientX, clientY);
-            if (isUnifiedMobileViewer && scale <= mobileDefaultScale + 0.0001) {
-              resetMobileViewport();
-            }
-          };
-
-          setBaseSize = function() {
-            if (isUnifiedMobileViewer) return fitMobileView();
-            const result = classicSetBaseSize();
-            normalizeSceneForDisplay(getDisplaySpace());
-            return result;
-          };
-
-          resetView = function() {
-            if (isUnifiedMobileViewer) return fitMobileView();
-            return fitDesktopClassic();
-          };
-
-          fitInitial = function() {
-            if (isUnifiedMobileViewer) return fitMobileView();
-            return fitDesktopClassic();
-          };
-
-          window.__setUnifiedMobileMode = function(active) {
-            installToolboxDrag();
-            ensureCoordinateInputs();
-            installMobileTouchHandlers();
-            setViewerLikeMode(active);
-            if (active) fitMobileView();
-            else fitDesktopClassic();
-          };
-
-          loadData = async function() {
-            installToolboxDrag();
-            ensureCoordinateInputs();
-            installMobileTouchHandlers();
-            setSyncState('Đang tải cloud...');
-            try {
-              const remote = await window.top.__mobileViewFetchRemoteDocumentV8();
-              if (remote) {
-                const cleanRemote = remote || { boxes: [], lines: [], meta: {} };
-                const sourceSpace = getSafeSpace(cleanRemote.meta && cleanRemote.meta.coordSpace, getImageSpace());
-                const targetSpace = getDisplaySpace();
-                applyStateToScene(cleanRemote, sourceSpace, targetSpace);
-                migrateLines();
-                selectedBoxId = null;
-                selectedLineId = null;
-                renderScene();
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanRemote));
-                setDirty(false);
-                setSyncState('Đã tải cloud');
-                if (isUnifiedMobileViewer) fitMobileView(); else fitDesktopClassic();
-                return;
-              }
-              await classicLoadData();
-              runtimeDisplaySpace = getDisplaySpace();
-              const hasLocalData = (boxes && boxes.length) || (lines && lines.length);
-              if (hasLocalData) {
-                const localPayload = createPersistedPayload();
-                setSyncState('Cloud trống, đang đẩy dữ liệu cũ...');
-                await window.top.__mobileViewSaveRemoteDocumentV8(localPayload);
-                await window.top.__mobileViewVerifyRemoteDocumentV8(localPayload);
-                setSyncState('Đã đẩy dữ liệu cũ lên cloud');
-              } else {
-                setSyncState('Cloud đang trống');
-              }
-              if (isUnifiedMobileViewer) fitMobileView(); else fitDesktopClassic();
-            } catch (error) {
-              console.error(error);
-              await classicLoadData();
-              runtimeDisplaySpace = getDisplaySpace();
-              setSyncState('Lỗi cloud, dùng dữ liệu máy này', true);
-              if (isUnifiedMobileViewer) fitMobileView(); else fitDesktopClassic();
-            }
-          };
-
-          saveData = async function() {
-            const payload = createPersistedPayload();
-            setSyncState('Đang lưu cloud...');
-            try {
-              const cleanPayload = await window.top.__mobileViewSaveRemoteDocumentV8(payload);
-              await window.top.__mobileViewVerifyRemoteDocumentV8(cleanPayload);
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanPayload));
-              setDirty(false);
-              setSyncState('Đã lưu cloud');
-            } catch (error) {
-              console.error(error);
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
-              setDirty(true);
-              setSyncState('Lỗi cloud, chỉ lưu máy này', true);
-            }
-          };
-
-          let autoSaveTimer = null;
-          const originalSetDirty = setDirty;
-          setDirty = function(value) {
-            originalSetDirty(value);
-            if (!value) return;
-            clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(() => { if (isDirty) saveData(); }, 1200);
-          };
-        }
-      `);
-    }
-
-    function applyMode() {
-      const mobile = isMobileMode();
-      frameStage.classList.toggle('mobile-landscape', isPortraitMobile());
-      if (!editorWindowRef) return;
-      injectBaseStyles(editorWindowRef.document);
-      if (editorWindowRef.__setUnifiedMobileMode) {
-        editorWindowRef.__isUnifiedMobileMode = mobile;
-        editorWindowRef.__setUnifiedMobileMode(mobile);
-      }
-    }
-
-    window.__mobileViewGetViewportV8 = () => {
-      if (isPortraitMobile()) return { width: window.innerHeight, height: window.innerWidth };
-      return { width: window.innerWidth, height: window.innerHeight };
-    };
-    window.__mobileViewFetchRemoteDocumentV8 = fetchRemoteDocument;
-    window.__mobileViewSaveRemoteDocumentV8 = saveRemoteDocument;
-    window.__mobileViewVerifyRemoteDocumentV8 = verifyRemoteDocument;
-
-    openBookBtn.addEventListener('click', openBookPanel);
-    closeBookBtn.addEventListener('click', closeBookPanel);
-    prevPageBtn.addEventListener('click', () => {
-      updateCurrentPageDraft();
-      if (currentBookPage > 0) currentBookPage -= 1;
-      renderBookPage();
-    });
-    nextPageBtn.addEventListener('click', () => {
-      updateCurrentPageDraft();
-      if (currentBookPage < bookData.pages.length - 1) currentBookPage += 1;
-      renderBookPage();
-    });
-    pageNumberInput.addEventListener('change', () => {
-      updateCurrentPageDraft();
-      const nextPage = Math.max(1, Math.min(bookData.pages.length, Number(pageNumberInput.value) || 1));
-      currentBookPage = nextPage - 1;
-      renderBookPage();
-    });
-    editBookBtn.addEventListener('click', () => {
-      if (!isBookEditable()) {
-        setBookStatus('Bạn cần đăng nhập trong trình chỉnh sửa để chỉnh sửa sách.', true);
-        renderBookPage();
-        return;
-      }
-      updateCurrentPageDraft();
-      isBookEditMode = !isBookEditMode;
-      renderBookPage();
-      if (isBookEditMode) bookEditor.focus();
-    });
-    saveBookBtn.addEventListener('click', saveCurrentBook);
-    addPageBtn.addEventListener('click', () => {
-      if (!isBookEditable() || !isBookEditMode) return;
-      updateCurrentPageDraft();
-      bookData.pages.splice(currentBookPage + 1, 0, '');
-      currentBookPage += 1;
-      renderBookPage();
-      bookEditor.focus();
-    });
-    removePageBtn.addEventListener('click', () => {
-      if (!isBookEditable() || !isBookEditMode || bookData.pages.length <= 1) return;
-      bookData.pages.splice(currentBookPage, 1);
-      currentBookPage = Math.max(0, Math.min(currentBookPage, bookData.pages.length - 1));
-      renderBookPage();
-    });
-    bookEditor.addEventListener('input', () => {
-      updateCurrentPageDraft();
-      setBookStatus('Nội dung trang đã thay đổi, cần lưu lại.');
-    });
-    bookPanel.addEventListener('click', (event) => {
-      if (event.target === bookPanel) closeBookPanel();
-    });
-    window.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !bookPanel.hidden) closeBookPanel();
-    });
-
-    window.addEventListener('touchmove', (event) => {
-      if (!isMobileMode()) return;
-      if (event.touches.length > 1) event.preventDefault();
-    }, { passive: false });
-
-    async function boot() {
-      try {
-        editorWindowRef = await findEditorWindow();
-        patchEditor(editorWindowRef);
-        await editorWindowRef.loadData();
-        applyMode();
-        renderBookPage();
-        if (!bookPermissionTimer) bookPermissionTimer = setInterval(renderBookPage, 1500);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    frame.addEventListener('load', boot);
-    window.addEventListener('resize', applyMode);
-    window.addEventListener('orientationchange', () => setTimeout(applyMode, 150));
-  </script>
-</body>
-</html>
+      if (!isBookEditable()) { setBookStatus('Bạn cần đăng nhập trong trình chỉnh sửa để lưu 
